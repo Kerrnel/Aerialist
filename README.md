@@ -1,5 +1,5 @@
 # Aerialist
-Videos Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver) using AppleTV + Youtube DL'd videos with collections supported by "crontab" like switching as well as auto downloading / caching or online only mode.
+Videos Screensaver for Linux, FreeBSD, NetBSD etc. (screensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by "crontab" like switching as well as auto downloading / caching or online only mode.
 
 Generally FreeBSD/NetBSD/Darwin/Linux tested
 
