@@ -59,9 +59,11 @@ TEXTRGB=AA998800			# Text Color
 STABLE='
 	*	12-1	2-14	19	7	22	Fireplace
 	*	*		*		19	7	11	Night
+	*	*		*		17	20	1	Sports
+	6	*		*		12	18	13	DIY
+	06	*		*		15	17	19	Music
 	135	*		*		*	*	11	Animals
 	*	*		*		9	17	9	Places
-	*	*		*		17	20	1	Sports
 	*	*		*		*	*	11	Apple
 '
 ############################################################################
@@ -107,22 +109,22 @@ Throw()	{	Err "$@"; exit 44;						}
 
 SeasonMatch()
  {
-	# Process SEASON table (on stdin) and echo firast matched Season - or $1 if no match
+	# Process SEASON table (on stdin) and echo firast matched Season - or $1 if no match - forked so everything local really
 	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd
 
-	M=$(date "+%d %m %w %H %M");
+	M=$(date "+%d %m %w %H %M");	Dbg "Season.: $M"
 	d="${M%% *}";	M="${M#* }"
 	m="${M%% *}";	M="${M#* }"
 	w="${M%% *}";	M="${M#* }"
 	H="${M%% *}";	M="${M#* }";	H="${H#0}";	M="${M#0}"
 
 	while read pw pdb pde phb phe snd pS; do if [ -n "$pw" ]; then
-		# Dbg "Season?: [$pw][$pdb[$pde][$phb][$phe][$pS][$d/$m/$w/$H/$M]" >&2
+		# Dbg "Season?: [W:$pw][D:$pdb[$pde][T:$phb][$phe][S:$pS][D:$d/$m W:$w T:$H/$M]" >&2
 		# * Matches anything
 		if [ "$pw" = '*' -o "${pw#*$w}" != "$pw" ]; then	# Weekday is all or contains today (0-6)
 			pmb="${pdb%-*}";	pdb="${pdb#*-}"
 			pme="${pde%-*}";	pde="${pde#*-}"
-			# echo "Season-: [$pmb[$pme][$pdb][$pde]" >&2
+			# Dbg "Season-: [$pmb[$pme][$pdb][$pde]"
 			dm=0
 			if [ "$pmb" = '*' -o "$pme" = '*' ]; then
 				dm=1
@@ -250,6 +252,7 @@ Download()
 				jpZaVpjWbbI	#	Caribbean
 				hbgo66q1s9o	#	China
 				gig9-jO7YL4	#	Earth
+				EBsnEiDTqEQ	#	Egypt
 				0EdVsuDq28M	#	Europe
 				6lxg0NKZjOE	#	France
 				8_j64iq_hTE	#	Germany
@@ -267,6 +270,7 @@ Download()
 				mTm0WKWGpas	#	Saudi Arabia
 				qEjzVTo2eTs	#	Slovenia 8K
 				NGoCQ3HyxQs	#	Sri Lanka
+				SG2rqrGBWiU #	Sudan
 				kVxTrhojpFI	#	fR1nGxW_OP4	(too big) #	Switzerland
 				hXa-WgLCyok	#	vz7y5a-dtu4	(too big) #	Thailand
 				4Z9mUjtFJYY	#	USA
@@ -281,14 +285,22 @@ Download()
 			ytvids="$ytvids hEGQZeBBvsA CAs0DjbH92s kE7D7qFayVg _uKWgZpUjYU zd4EIXDjEJ4"
 			ytvids="$ytvids nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw"
 			ytvids="$ytvids bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4"
-			ytvids="$ytvids KxllkdTTs1M o7W7OvETO40"
+			ytvids="$ytvids KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8"
 		  ;;
 		  'Winter')
 			ytvids='ZyCudosHxUA'
 		  ;;
 		  'Beauty')
 			ytvids='KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
-			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80"
+			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80 swRvDBBOduA k0j4o834vyk"
+		  ;;
+		  'Music')
+			ytvids='YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU'
+			ytvids="$ytvids "
+		  ;;
+		  'DIY')
+			ytvids='EIGcemiOT4M ZsE7IR0Ty74'
+			ytvids="$ytvids "
 		  ;;
 
 		  *)
@@ -700,17 +712,17 @@ Abort()
  }
 
 # Poor mans getopts - Install into xscreensaver and exit, test mode (just output what would happen)
-while [ -n "$1" ]; do case "$1" in
+while [ -n "$1" ]; do a=0; case "$1" in
   'install')	Install						;;	# Install into Xscreensaver / Download MOVIES
   'online')		ONLINE=2					;;	# Use AppleTV videos
   'offline')	ONLINE=0					;;	# ... or do NOT
   'sound')		SOUND=25					;;	# Audio
-  'volume')		SOUND="$2"; shift			;;	
-  'aerial')		AERIAL="$2"; shift			;;	# MOVIES folders inside here
-  'movies')		MOVIES="$2"; shift			;;	# Just use this one
+  'volume')		SOUND="$2"; a=1				;;	
+  'aerial')		AERIAL="$2"; a=1			;;	# MOVIES folders inside here
+  'movies')		MOVIES="$2"; a=1			;;	# Just use this one
   'hdr')		ONLINEHDR=1					;;	# AppleTV Video quality
   '4k')			ONLINE4K=1					;;
-  'test')		TEST=1; TESTME="$2"; shift	;;	# Test one video file
+  'test')		TEST=1; TESTME="$2"; a=1	;;	# Test one video file
   'set'*)
 	for i in 'joe' 'pico' 'nano' 'vi' 'emacs'; do
 		[ -z "$EDITOR" ] && which "$i" > /dev/null 2>&1 && EDITOR="$i"
@@ -721,7 +733,7 @@ while [ -n "$1" ]; do case "$1" in
 	fi
 	exec "$EDITOR" "$PREFS"; exit 0
   ;;
-esac; shift; done
+esac; shift; [ $a -ne 0 -a -n "$1" ] && shift; done
 
 # Lock for this display
 lockf="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#:}.lock"
@@ -798,7 +810,7 @@ Press return to play'
 		echo "Command: mplayer $snd -nolirc $WINDOWID -fs \"$CHOICE\" -sub \"$SUBTITLE\" -panscan $PANSCAN" $seek $tsiz
 		echo 'Press q during playback to exit'
 		read line
-		mplayer $snd -nolirc $WINDOWID -fs "$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz
+		[ "$line" != 'q' ] && mplayer $snd -nolirc $WINDOWID -fs "$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz
 		exit 1
 	elif [ -s "$CHOICE" ]; then
 		# file is on filesystem so just play it
@@ -830,7 +842,7 @@ done
 #
 #	History
 #	011	GLK	231218	Move History here ... makes more sense, settings command
-#	010	GLK	231217	Install can over-install, create .xscreensavaer (untested)., Offer to DL videos at install
+#	010	GLK	231217	Install can over-install, create .xscreensaver (untested)., Offer to DL videos at install
 #	009	GLK	231216	Resume movies where screensaver was interrupted (for long youtube videos)
 #	008	GLK	231215	Download YT videos into AERIAL/SEASON folder if not populated but requested
 #	007	GLK	231214	Tear up night/day ... just use seasons, Apple video integration
