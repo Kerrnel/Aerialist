@@ -1,12 +1,11 @@
 # Aerialist
-Videos Screensaver for Linux, FreeBSD, NetBSD etc. (screensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by "crontab" like switching as well as auto downloading / caching or online only mode.
+Videos Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by "crontab" like switching as well as auto caching or online only mode. Will install itself with 'install' as first parameter.
 
-Generally FreeBSD/NetBSD/Darwin/Linux tested
+FreeBSD/NetBSD/Darwin/Linux tested
 
+Usage: Aerialist [install][4k][hdr][online][offline][movies path][sound vol][settings][test]
 
-Usage: Aerialist [install][4k][hdr][online][movies path][sound vol][settings]
-
-	Aerialist 1.10
+	Aerialist 1.12
 
 	A rewrite of the Aerial screensaver
 
