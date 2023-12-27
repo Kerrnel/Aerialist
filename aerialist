@@ -102,7 +102,7 @@ STATEDB="$XDG_CONFIG_HOME/aerialist-state"
 [ -n "$XSCREENSAVER_WINDOW" ] && WINDOWID="-wid $XSCREENSAVER_WINDOW" || TEST=1
 
 Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;		}
-Log()	{	Msg "$@" >> "$LOGF" 2>&1;				}
+Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF";	}
 Dbg()	{	[ $TEST -ne 0 ] && Msg "+++ [$@] +++";	}
 Err()	{	Msg "*** [$@] ***";						}
 Throw()	{	Err "$@"; exit 44;						}
@@ -156,6 +156,7 @@ SourceSet()
 	local i
 
 	# Default
+	SEASON="$1"
 	MOVIES="${AERIAL}/${SEASON}"
 
 	# Some alternative locations for MOVIES if it not a directory - or chosen based on Season election
@@ -186,25 +187,26 @@ SourceSet()
 
 SeasonSet()
  {
+	local	s
 	# Get Season / Sound
 	if [ $ONLINE -gt 1 ]; then
-		SEASON='Apple'
+		s='Apple'
 		Dbg 'Online forced'
 	elif [ -n "$1" ]; then
-		SEASON="$1"
+		s="$1"
 	else
-		[ -n "$STABLE" ] && SEASON=$(echo "$STABLE" | SeasonMatch "$SEASON")
-		SOUND="${SEASON%%:*}"
-		SEASON="${SEASON#*:}"
+		[ -n "$STABLE" ] && s=$(echo "$STABLE" | SeasonMatch "$SEASON")
+		SOUND="${s%%:*}"
+		s="${s#*:}"
 	fi
 
-	Dbg "Season:	$SEASON"
-	SourceSet
+	Dbg "Season:	$s"
+	SourceSet "$s"
  }
 
 Download()
  {
-	local line
+	local line st url n i
 
 	# Download a Season's content from YouTube
 	if [ "$1" = 'Apple' ]; then
@@ -214,9 +216,16 @@ Download()
 			cd "$MOVIES"
 			AppleVideo
 			cat "$OUT" | while read line; do if [ -n "$line" ]; then
-				ApplePie "$line"
-				Dbg "AppleTV: $OU2 ($OUT)"
-				curl -o "${OUT##*/}" "$OUT"
+				ApplePie "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
+				Dbg "AppleTV: $st ($url)"
+				for i in *"${n}"; do [ -e "$i" ] && n=''; done
+				if [ -n "$n" ]; then
+					Log "Downloading: $url to $MOVIES"
+					curl -o "${st}-${n}" "$url"
+					Log "Downloaded: $n"
+				else
+					Log "ATV: $url already exists"
+				fi
 			fi; done
 		fi
 		return 0
@@ -250,7 +259,7 @@ Download()
 				eaLWXfsuxf0	#	o2ZxJA9CSJg	(too big) #	Bali
 				Vmx6I1vQFSs	#	Bavaria
 				jpZaVpjWbbI	#	Caribbean
-				hbgo66q1s9o	#	China
+				-TXh2rrNshI	#	China
 				gig9-jO7YL4	#	Earth
 				EBsnEiDTqEQ	#	Egypt
 				0EdVsuDq28M	#	Europe
@@ -277,7 +286,7 @@ Download()
 				_K-Gtb_ywfg	#	Venezuela
 				64bA0CxioCE	#	MbXLt7OwEXI	(too big) #	Vietnam
 				Ihiy9A__QM8 #	Wonders
-				" | while read f v; do printf "$f "; done)
+				" | while read f v; do printf " $f"; done)
 		  ;;
 		  'Sports')
 			ytvids='wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs'
@@ -315,10 +324,18 @@ Download()
 			for v in $ytvids; do
 				for f in *"${v}"*; do if [ -s "$f" ]; then
 					f="${f%.*}"
-					f="${f##*-}"
+					while [ ${#f} -gt 11 -a "${f}" != "${f#*-}" ]; do
+						f="${f#*-}"	# ID might have '-' in it anywhere
+					done
 					[ "$f" = "$v" ] && v=''
 				fi; done
-				[ -n "$v" ] && youtube-dl "https://www.youtube.com/watch?v=$v" || Dbg "Already have: $v in $1"
+				if [ -n "$v" ]; then
+					Log "Downloading YT: $v in $MOVIES"
+					youtube-dl "https://www.youtube.com/watch?v=$v"
+					Log "Downloaded YT: $v"
+				else
+					Dbg "Already have: $f in $1"
+				fi
 			done
 		else
 			Err "$MOVIES could not be created to stash videos"
@@ -777,20 +794,26 @@ trap Abort TERM INT HUP
 while [ 9 -eq 9 ]; do
 	ChooseVideo
 
-	# Create SUBTITLE blurp at 0,5,10,15 minutes
-	if [ "$CHOICE" = "${CHOICE#*:}" ]; then				# Offline (vs AppleTV)?
+	if [ "$SEASON" != 'Apple' ]; then				# Offline (vs AppleTV)?
 		st="${CHOICE##*/}";	st="${st%%.*}";	st="${st%%-*}"	# Default title - drop extension, youtube ID
 	else
 		ApplePie "$CHOICE";	CHOICE="$OUT"; st="$OU2"
 
 		if [ "$CACHE" -ne 0 ]; then
-			f="${CHOICE##*/}"
+			f="${st}-${CHOICE##*/}"
 			[ $TEST -ne 0 -a ! -s "$MOVIES$f" ] && Msg "Cache ON, press return to download to $f in background" && read line
-			[ -s "$MOVIES$f" ] && CHOICE="$MOVIES$f" && Dbg "Using Cache"
-			[ -s "$MOVIES$f" ] || curl -o "$MOVIES$f" "$CHOICE" >/dev/null 2>&1 &	# Sleeping and waiting did not work when tested
+			for i in "${MOVIES}"/*"${CHOICE##*/}"; do [ -s "$i" ] && CHOICE=''; done
+			if [ -z "$CHOICE" ]; then
+				CHOICE="${MOVIES}$f"
+				Dbg "Using Cache"
+			else
+				Log "Background DL: $CHOICE to $MOVIES$f"
+				curl -o "$MOVIES$f" "$CHOICE" >/dev/null 2>&1 &	# Sleeping and waiting did not work when tested
+			fi
 		fi
 	fi
 
+	# Create SUBTITLE blurp at 0,5,10,15 minutes
 	VideoDescription "$st"; st="$OUT"					# Allow for overriding file name / Apple description
 	Subtitles "$st" > "$SUBTITLE"
 
@@ -814,18 +837,18 @@ Press return to play'
 		exit 1
 	elif [ -s "$CHOICE" ]; then
 		# file is on filesystem so just play it
-		echo "Local: $CHOICE" > "$LOGF"
+		Log "Local: $CHOICE"
 		mplayer $snd -really-quiet -nolirc -nostop-xscreensaver $WINDOWID -fs "$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz >> "$LOGF" 2>&1 &
 	    MPID=$!
 	    SetStoppedAt 0
-	elif [ $ONLINE -ne 0 ]; then
+	elif [ $ONLINE -ne 0 -a "${CHOICE}" != "${CHOICE#*://}" ]; then
 		# no file on filesystem so try to stream it
-		echo "Streaming: $CHOICE" > "$LOGF"
+		Log "Streaming: $CHOICE"
 		mplayer $snd -really-quiet -nolirc -nostop-xscreensaver $WINDOWID -fs "$ONLINEURL/$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz >> "$LOGF" 2>&1  &
 		MPID=$!
 		SetStoppedAt 0
 	else
-		echo "*** $MOVIES is empty and ONLINE is off ***"
+		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is off ***"
 		exit 99
 	fi
 	echo "$MPID" >> "$lockf"
@@ -841,6 +864,7 @@ done
 #		(See VideoDescription function below)
 #
 #	History
+#	012	GLK	231224	Log download beg/end
 #	011	GLK	231218	Move History here ... makes more sense, settings command
 #	010	GLK	231217	Install can over-install, create .xscreensaver (untested)., Offer to DL videos at install
 #	009	GLK	231216	Resume movies where screensaver was interrupted (for long youtube videos)
