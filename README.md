@@ -5,7 +5,7 @@ FreeBSD/NetBSD/Darwin/Linux tested
 
 Usage: Aerialist [install][4k][hdr][online][offline][movies path][sound vol][settings][test]
 
-	Aerialist 1.12
+	Aerialist 1.13
 
 	A rewrite of the Aerial screensaver
 

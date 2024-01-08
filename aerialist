@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=231218
-gVers=011
+gDate=231227
+gVers=013
 #############################################################################
-#	Aerialist 1.10
+#	Aerialist 1.13
 #
 #	A rewrite of the Aerial screensaver
 #
@@ -77,17 +77,17 @@ TESTME=''			# Fake a selection with test XYZ (use 'test' 'VideoPath')
 # Markers
 OS_TYPE=$(uname -s)
 USER=$(id -un)
-UID=$(id -u)
+USID=$(id -u)
 LOGF="/tmp/aerialist.$USER.log"
 
 # XDG
 [ -z "$XDG_CONFIG_HOME" ] && XDG_CONFIG_HOME=~/'.config'
 [ ! -d "$XDG_CONFIG_HOME" ] && mkdir -p "$XDG_CONFIG_HOME"
 
-[ -z "$XDG_RUNTIME_DIR" ] && XDG_RUNTIME_DIR="/var/run/user/$UID"
+[ -z "$XDG_RUNTIME_DIR" ] && XDG_RUNTIME_DIR="/var/run/user/$USID"
 [ ! -d "$XDG_RUNTIME_DIR" ] && {
 	mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null
-	[ ! -d "$XDG_RUNTIME_DIR" ] && XDG_RUNTIME_DIR="/tmp/run-user-$UID"
+	[ ! -d "$XDG_RUNTIME_DIR" ] && XDG_RUNTIME_DIR="/tmp/run-user-$USID"
 	mkdir -p "$XDG_RUNTIME_DIR"
  }
 
@@ -98,8 +98,6 @@ PREFS="$XDG_CONFIG_HOME/aerialist"
 # If RESUME != 0
 STATEDB="$XDG_CONFIG_HOME/aerialist-state"
 
-# Are we inside xscreensaver?
-[ -n "$XSCREENSAVER_WINDOW" ] && WINDOWID="-wid $XSCREENSAVER_WINDOW" || TEST=1
 
 Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;		}
 Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF";	}
@@ -163,7 +161,7 @@ SourceSet()
 	if [ ! -d "$MOVIES" ]; then
 		for i in "${AERIAL}/${SEASON}" "${AERIAL%/*}/$SEASON" ~/"Videos"/Aerial*/"$SEASON" \
 				'/home'/*/"VIDEO"/Aerial*/"$SEASON" ~/"Videos/$SEASON" '/home'/*/"VIDEO/$SEASON" \
-				"/SHARE/VIDEO/COLLECTION/$SEASON"; do
+				"/SHARE/VIDEO/COLLECTION/$SEASON" "/SHARE/DRONE/$SEASON"; do
 			[ -d "$i" ] && MOVIES="$i" && Dbg "Selected: $i"
 		done
 	fi
@@ -172,6 +170,8 @@ SourceSet()
 	if [ -z "$MOVIES" ]; then
 		MOVIES="$AERIAL/$SEASON"
 		Download "$SEASON"
+	elif [ ! -e "$AERIAL" ]; then
+		ln -s "${MOVIES%/*}" "$AERIAL"
 	fi
 
 	# End with / for find
@@ -253,6 +253,7 @@ Download()
 		  ;;
 		  'Places')
 			ytvids=$(echo "
+				Ee0Qh_nIoHw	#	Afrika
 				CHSnz0bCaUk	#	Alaska 8K
 				YDL8HbY9ENU	#	Argentina
 				bQmzk05I3nw	#	Australia
@@ -272,15 +273,18 @@ Download()
 				56gZuTy6xIc	#	Italy
 				G5RpJwCJDqc	#	Japan
 				Cjl70Cqo3Q4	#	Kashmir
+				s0vUJamgEw	#	Namibia
 				gCRNEJxDJKM	#	Nepal
 				vtxVK3sbZ0o	#	New Zealand
 				CxwJrzEdw1U	#	Norway
 				jjP12kUYUs4	#	Philippines
 				mTm0WKWGpas	#	Saudi Arabia
 				qEjzVTo2eTs	#	Slovenia 8K
+				VzqWO5EaSps	#	South Africa
 				NGoCQ3HyxQs	#	Sri Lanka
 				SG2rqrGBWiU #	Sudan
 				kVxTrhojpFI	#	fR1nGxW_OP4	(too big) #	Switzerland
+				DEAcPVg8V7U	#	Tanzania
 				hXa-WgLCyok	#	vz7y5a-dtu4	(too big) #	Thailand
 				4Z9mUjtFJYY	#	USA
 				_K-Gtb_ywfg	#	Venezuela
@@ -301,14 +305,15 @@ Download()
 		  ;;
 		  'Beauty')
 			ytvids='KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
-			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80 swRvDBBOduA k0j4o834vyk"
+			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80 swRvDBBOduA k0j4o834vyk n9N8vFA7sig"
+			ytvids="$ytvids LqkD9QrtdN0 "
 		  ;;
 		  'Music')
 			ytvids='YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU'
 			ytvids="$ytvids "
 		  ;;
 		  'DIY')
-			ytvids='EIGcemiOT4M ZsE7IR0Ty74'
+			ytvids='EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M 207fdj7Wuo '
 			ytvids="$ytvids "
 		  ;;
 
@@ -345,6 +350,15 @@ Download()
 	fi
  }
 
+IsInstalled()
+ {
+	local	a c
+	a=~/'.xscreensaver'
+	[ ! -s "$a" ] && return 1
+	c="$0"; [ "$c" != "${c#/}" ] || c="$(pwd)/$c"
+	grep -q "$c" "$a"
+ }
+
 Install()
  {
 	local	o a c line
@@ -363,8 +377,7 @@ programs:                                                                 \
 	fi
 
 	if [ -s "$a" ]; then
-		c="$0"
-		[ "$c" != "${c#/}" ] || c="$(pwd)/$c"
+		c="$0"; [ "$c" != "${c#/}" ] || c="$(pwd)/$c"
 
 		echo "------------------------------------------------------------------
 INSTALL
@@ -426,9 +439,12 @@ MPlayer:	$(which mplayer 2>&1)
 XScreenSaver:	$(which xscreensaver 2>&1)
 Video Root:	$AERIAL"
 	echo '
+Videos will be downloaded/streamed as needed.
+
+(Streaming only works with ATV videos, not YouTube.)
+
 Press enter to download videos now (many gigabytes)
-Alternatively they will be downloaded as needed and
-	ctrl-C will stop
+or ctrl-C to stop here.
 '
 	printf "Enter to continue: "; read line
 
@@ -506,6 +522,7 @@ ApplePie()
 	  '11') [ -n "$k4h" ] && c="$k4h"	;;
 	esac
 	OUT="${ONLINETPT}:${c}";	OU2="$st"
+#	Dbg "ApplePie: $OUT ($1)"
  }
 
 AppleVideoJson()
@@ -546,7 +563,7 @@ AppleVideoTar()
 
 AppleVideo()
  {
-	# Download if eneded to DB, make a copy to $1 if provided
+	# Download if needed to DB, make a copy to $1 if provided
 	local	avu="$XDG_CONFIG_HOME/aerialist-AppleURL"
 
 	if [ ! -s "$avu" ]; then
@@ -578,6 +595,7 @@ ChooseVideo()
 		fi
 		if [ $n -le 0 ]; then
 			[ $ONLINE -eq 0 ] && Throw "No videos in $MOVIES"
+			SeasonSet 'Apple'
 			AppleVideo "$VIDEODB"
 		fi
 	fi
@@ -696,7 +714,7 @@ SetStoppedAt()
 			while read line; do
 				[ "${line##*:}" != "${CHOICE##*/}" ] && echo "$line" >> "${STATEDB}.new"
 			done < "$STATEDB"
-			cp"${STATEDB}" "${STATEDB}.old"
+			cp "${STATEDB}" "${STATEDB}.old"
 		fi
 		cp "${STATEDB}.new" "${STATEDB}"
 		rm -f "${STATEDB}.old"
@@ -728,6 +746,20 @@ Abort()
 	fi
  }
 
+# Lock for this display
+lockf="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#*:}.lock"
+if [ -e "$lockf" ]; then
+	pid=$(head -n 1 "$lockf")	# aerialist
+	case "$OS_TYPE" in
+	  'Linux')	f='-h -q'	;;
+	  *)		f='-p'		;;
+	esac
+	ps $f "$pid" >/dev/null 2>&1 && echo "Aerialist locked by $pid in $lockf" && exit 33
+	pid=$(tail -n 1 "$lockf")	# mplayer
+	ps $f "$pid" >/dev/null 2>&1 && kill -9 "$pid"
+fi
+echo $$ > "$lockf"
+
 # Poor mans getopts - Install into xscreensaver and exit, test mode (just output what would happen)
 while [ -n "$1" ]; do a=0; case "$1" in
   'install')	Install						;;	# Install into Xscreensaver / Download MOVIES
@@ -752,19 +784,18 @@ while [ -n "$1" ]; do a=0; case "$1" in
   ;;
 esac; shift; [ $a -ne 0 -a -n "$1" ] && shift; done
 
-# Lock for this display
-lockf="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#:}.lock"
-if [ -e "$lockf" ]; then
-	pid=$(head -n 1 "$lockf")	# aerialist
-	case "$OS_TYPE" in
-	  'Linux')	f='-h -q'	;;
-	  *)		f='-p'		;;
-	esac
-	ps $f "$pid" >/dev/null 2>&1 && echo "Aerialist locked by $pid in $lockf" && exit 33
-	pid=$(tail -n 1 "$lockf")	# mplayer
-	ps $f "$pid" >/dev/null 2>&1 && kill -9 "$pid"
+# Are we inside xscreensaver?
+if [ -n "$XSCREENSAVER_WINDOW" ]; then
+	WINDOWID="-wid $XSCREENSAVER_WINDOW"
+else
+	TEST=2
+	# Are we installed?
+	if ! IsInstalled; then
+		echo 'Aerialist is not installed, type i to install or just enter to continue test.'
+		read line
+		[ "$line" ] = 'i' && Install
+	fi
 fi
-echo $$ > "$lockf"
 
 # Show info in test mode
 if [ $TEST -ne 0 ]; then
@@ -795,6 +826,7 @@ while [ 9 -eq 9 ]; do
 	ChooseVideo
 
 	if [ "$SEASON" != 'Apple' ]; then				# Offline (vs AppleTV)?
+		Dbg "No pie"
 		st="${CHOICE##*/}";	st="${st%%.*}";	st="${st%%-*}"	# Default title - drop extension, youtube ID
 	else
 		ApplePie "$CHOICE";	CHOICE="$OUT"; st="$OU2"
@@ -808,6 +840,7 @@ while [ 9 -eq 9 ]; do
 				Dbg "Using Cache"
 			else
 				Log "Background DL: $CHOICE to $MOVIES$f"
+				mkdir -p "$MOVIES"
 				curl -o "$MOVIES$f" "$CHOICE" >/dev/null 2>&1 &	# Sleeping and waiting did not work when tested
 			fi
 		fi
@@ -864,6 +897,7 @@ done
 #		(See VideoDescription function below)
 #
 #	History
+#	013	GLK	231227	Fix darwin UID being ro, prompt to install w/ no parameters if not installed
 #	012	GLK	231224	Log download beg/end
 #	011	GLK	231218	Move History here ... makes more sense, settings command
 #	010	GLK	231217	Install can over-install, create .xscreensaver (untested)., Offer to DL videos at install
