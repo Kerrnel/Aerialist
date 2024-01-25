@@ -206,7 +206,7 @@ SeasonSet()
 
 Download()
  {
-	local line st url n i
+	local line st url n i f v
 
 	# Download a Season's content from YouTube
 	if [ "$1" = 'Apple' ]; then
@@ -217,14 +217,14 @@ Download()
 			AppleVideo
 			cat "$OUT" | while read line; do if [ -n "$line" ]; then
 				ApplePie "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
-				Dbg "AppleTV: $st ($url)"
+				Dbg "AppleTV:	$st ($url)"
 				for i in *"${n}"; do [ -e "$i" ] && n=''; done
 				if [ -n "$n" ]; then
-					Log "Downloading: $url to $MOVIES"
+					Log "Downloading:	$url to $MOVIES"
 					curl -o "${st}-${n}" "$url"
-					Log "Downloaded: $n"
+					Log "Downloaded:	$n"
 				else
-					Log "ATV: $url already exists"
+					Log "ATV:	${url##*/} already exists"
 				fi
 			fi; done
 		fi
@@ -234,9 +234,10 @@ Download()
 
 		case "$1" in
 		  'Animals')
-			ytvids='DVTRklHhEsU Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0'
+			ytvids='        Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0'
 			ytvids="$ytvids ZPyQh7jjbpE qOXeIip16No eoTpdTU8nTA asTC8fvw0W8"
-			ytvids="$ytvids 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec"
+			ytvids="$ytvids 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec 3qBfTWuFjbo"
+			ytvids="$ytvids DVTRklHhEsU"
 		  ;;
 		  'Fireplace')
 			ytvids='mKCieTImjvU 6j3hPg0t5fo B0j__sZXiWI 7pTdGR46ZKA'
@@ -249,7 +250,7 @@ Download()
 			ytvids="$ytvids HTeNfkAoUlI REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4"
 			ytvids="$ytvids y1doKCK7Dwk qgfd-uWTVwg bCEMBU9Sk98 B5unCXpegAw DhNMS5mD4ak"
 			ytvids="$ytvids 3Qn7_mljjTg TfqaEJpQmDc veCr5M0rNpo lL5RPnXyklk pyu-djhQFVU"
-			ytvids="$ytvids 6zh-LN-dObY DslTxXsDLsw"
+			ytvids="$ytvids 6zh-LN-dObY DslTxXsDLsw gosjiD288Jk"
 		  ;;
 		  'Places')
 			ytvids=$(echo "
@@ -273,7 +274,7 @@ Download()
 				56gZuTy6xIc	#	Italy
 				G5RpJwCJDqc	#	Japan
 				Cjl70Cqo3Q4	#	Kashmir
-				s0vUJamgEw	#	Namibia
+				-s0vUJamgEw	#	Namibia
 				gCRNEJxDJKM	#	Nepal
 				vtxVK3sbZ0o	#	New Zealand
 				CxwJrzEdw1U	#	Norway
@@ -298,7 +299,7 @@ Download()
 			ytvids="$ytvids hEGQZeBBvsA CAs0DjbH92s kE7D7qFayVg _uKWgZpUjYU zd4EIXDjEJ4"
 			ytvids="$ytvids nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw"
 			ytvids="$ytvids bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4"
-			ytvids="$ytvids KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8"
+			ytvids="$ytvids KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU"
 		  ;;
 		  'Winter')
 			ytvids='ZyCudosHxUA'
@@ -309,7 +310,7 @@ Download()
 			ytvids="$ytvids LqkD9QrtdN0 "
 		  ;;
 		  'Music')
-			ytvids='YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU'
+			ytvids='YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ'
 			ytvids="$ytvids "
 		  ;;
 		  'DIY')
@@ -335,11 +336,11 @@ Download()
 					[ "$f" = "$v" ] && v=''
 				fi; done
 				if [ -n "$v" ]; then
-					Log "Downloading YT: $v in $MOVIES"
+					Log "Downloading YT:	$v in $MOVIES"
 					youtube-dl "https://www.youtube.com/watch?v=$v"
-					Log "Downloaded YT: $v"
+					Log "Downloaded YT:	$v"
 				else
-					Dbg "Already have: $f in $1"
+					Log "Already have:	$f in $1"
 				fi
 			done
 		else
@@ -732,7 +733,7 @@ Abort()
 		kill $mpid
 		mv -f "$lockf" "${lockf}.old"
 		SetStoppedAt
-		[ $RESUME -n 0 ] && Log "Stopped at: $OUT"
+		[ $RESUME -ne 0 ] && Log "Stopped at: $OUT"
 		case "$OS_TYPE" in
 		  'Linux')	f='-h -q'	;;
 		  *)		f='-p'		;;
