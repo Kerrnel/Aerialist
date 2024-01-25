@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=231227
-gVers=013
+gDate=240123
+gVers=014
 #############################################################################
-#	Aerialist 1.13
+#	Aerialist 1.14
 #
 #	A rewrite of the Aerial screensaver
 #
@@ -218,7 +218,7 @@ Download()
 			cat "$OUT" | while read line; do if [ -n "$line" ]; then
 				ApplePie "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
 				Dbg "AppleTV:	$st ($url)"
-				for i in *"${n}"; do [ -e "$i" ] && n=''; done
+				for i in *"${n}"; do [ -s "$i" ] && n=''; done
 				if [ -n "$n" ]; then
 					Log "Downloading:	$url to $MOVIES"
 					curl -o "${st}-${n}" "$url"
@@ -601,9 +601,9 @@ ChooseVideo()
 		fi
 	fi
 
-	# select at random a video to play from the day or night pools
+	# select at random a video from collection ($SEASON) to play
 	RandomLine "$VIDEODB"
-	[ -n "$TESTME" ] && echo 'Test override' && OUT="$TESTME"
+	[ -n "$TESTME" ] && Msg "Test override: $TESTME" && OUT="$TESTME" && TESTME=''
 	CHOICE="$OUT"
 	[ -z "$CHOICE" ] && Throw "No choice in $VIDEODB"
 }
@@ -834,7 +834,11 @@ while [ 9 -eq 9 ]; do
 
 		if [ "$CACHE" -ne 0 ]; then
 			f="${st}-${CHOICE##*/}"
-			[ $TEST -ne 0 -a ! -s "$MOVIES$f" ] && Msg "Cache ON, press return to download to $f in background" && read line
+			if [ ! -s "${MOVIES}$f" ]; then
+				# Changed or no name in front of -
+				for i in "${MOVIES}"*"$CHOICE"; do [ -s "$i" ] && f="$i"; done
+				[ $TEST -ne 0 -a ! -s "$MOVIES$f" ] && Msg "Cache ON, press return to download to $f in background" && read line
+			fi
 			for i in "${MOVIES}"/*"${CHOICE##*/}"; do [ -s "$i" ] && CHOICE=''; done
 			if [ -z "$CHOICE" ]; then
 				CHOICE="${MOVIES}$f"
@@ -882,7 +886,7 @@ Press return to play'
 		MPID=$!
 		SetStoppedAt 0
 	else
-		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is off ***"
+		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is $ONLINE ($ONLINE4K/$ONLINEHDR) ***"
 		exit 99
 	fi
 	echo "$MPID" >> "$lockf"
