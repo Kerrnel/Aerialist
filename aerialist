@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240123
-gVers=014
+gDate=240127
+gVers=015
 #############################################################################
-#	Aerialist 1.14
+#	Aerialist 1.15
 #
 #	A rewrite of the Aerial screensaver
 #
@@ -52,7 +52,7 @@ PANSCAN=1.0					# Crop 16:9 movies - set to 0 to not do it
 SUBINTERVAL=2				# Description every this many minutes
 SUBREPEATS=55				# Number of times to repeat @ SUBINTERVAL
 TEXTSIZE=4					# %age of screen pixels for label
-TEXTRGB=AA998800			# Text Color
+TEXTRGB=AA998877			# Text Color
 
 # Winter Fireplace?
 # Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume SeasonName
@@ -66,12 +66,15 @@ STABLE='
 	*	*		*		9	17	9	Places
 	*	*		*		*	*	11	Apple
 '
+
+PLAYER=''			# Empty to use mpv -> mplayer -> vlc
+PLARGS=''			# Empty to auto choose arguments
 ############################################################################
 #	End of User interesting section
 
 
 # Globals
-MPID=0				# MPlayer pid
+MPID=0				# Player pid
 TESTME=''			# Fake a selection with test XYZ (use 'test' 'VideoPath')
 
 # Markers
@@ -98,6 +101,11 @@ PREFS="$XDG_CONFIG_HOME/aerialist"
 # If RESUME != 0
 STATEDB="$XDG_CONFIG_HOME/aerialist-state"
 
+# Auto choice of player
+for i in 'mpv' 'mplayer' 'vlc'; do
+	[ -z "$PLAYER" ] && which "$i" > /dev/null 2>&1 && PLAYER="$i"
+	PLARGS=''
+done
 
 Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;		}
 Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF";	}
@@ -244,8 +252,8 @@ Download()
 			ytvids="$ytvids paiSoYQhaBE KzmtBgqap0s wNwMnGRjgdw bmGsQkLb4yg eYy-ahKKMys"
 		  ;;
 		  'Night')
-			ytvids='B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8Ek SMKVJO_wGo'
-			ytvids="$ytvids pRROyjwdNjA 3Ow0ET-ob3E GX7xOqLgkTM 3G1KBu6H6BM YGReGYHumA"
+			ytvids='        B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo'
+			ytvids="$ytvids pRROyjwdNjA 3Ow0ET-ob3E GX7xOqLgkTM 3G1KBu6H6BM UV07v89nf3g"
 			ytvids="$ytvids 44KvHwRHb3A JpyPwnDaijU zdOTV2RH9IY pOBrBb0gV64 jvTAPzS8glw"
 			ytvids="$ytvids HTeNfkAoUlI REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4"
 			ytvids="$ytvids y1doKCK7Dwk qgfd-uWTVwg bCEMBU9Sk98 B5unCXpegAw DhNMS5mD4ak"
@@ -300,14 +308,18 @@ Download()
 			ytvids="$ytvids nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw"
 			ytvids="$ytvids bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4"
 			ytvids="$ytvids KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU"
+			ytvids="$ytvids nwpX4zEW1wc tx1-fDueJxg D7v4VAB1NoY J2v2k06Rp-U rC4UVSqi0qc"
+			ytvids="$ytvids 9nuGI9fnOME V55DRE9vJSs"
 		  ;;
 		  'Winter')
 			ytvids='ZyCudosHxUA'
 		  ;;
 		  'Beauty')
-			ytvids='KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
+			ytvids='	    KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
 			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80 swRvDBBOduA k0j4o834vyk n9N8vFA7sig"
-			ytvids="$ytvids LqkD9QrtdN0 "
+			ytvids="$ytvids LqkD9QrtdN0 IqHVqp2G2B0 IKh6XN5HnaI Z49GnKM4rNs 0L52jQygBOc"
+			ytvids="$ytvids k4RW-nbIqns wv29wxfa5MQ vRClrj9k52s 0xcLi2YFQaA k4RW-nbIqns"
+			ytvids="$ytvids "
 		  ;;
 		  'Music')
 			ytvids='YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ'
@@ -327,9 +339,12 @@ Download()
 		mkdir -p "$MOVIES"
 		if [ -d "$MOVIES" ]; then
 			cd "$MOVIES"
+			# yt-dlp names title [id].xyz - youtube-dl names title-id.xyz (where id can contain a '-')
 			for v in $ytvids; do
 				for f in *"${v}"*; do if [ -s "$f" ]; then
 					f="${f%.*}"
+					f="${f%]*}"
+					f="${f##*[}"
 					while [ ${#f} -gt 11 -a "${f}" != "${f#*-}" ]; do
 						f="${f#*-}"	# ID might have '-' in it anywhere
 					done
@@ -436,7 +451,7 @@ Type any parameters to add when started separated with a space:
 Needed Programs (Set up XScreenSaver in its GUI)
 Youtube-DL:	$(which youtube-dl 2>&1)
 Curl:		$(which curl 2>&1)
-MPlayer:	$(which mplayer 2>&1)
+Player:	$(which $PLAYER 2>&1)
 XScreenSaver:	$(which xscreensaver 2>&1)
 Video Root:	$AERIAL"
 	echo '
@@ -448,6 +463,7 @@ Press enter to download videos now (many gigabytes)
 or ctrl-C to stop here.
 '
 	printf "Enter to continue: "; read line
+	TEST=1	# Show messages to screen
 
 	[ $ONLINE -gt 1 ] && ONLINE=1	# Otherwise no downloading
 	echo "$STABLE" | while read pw pdb pde phb phe snd pS; do if [ -n "$pS" ]; then
@@ -723,6 +739,16 @@ SetStoppedAt()
 	fi
  }
 
+IsUp()
+ {
+	local f
+	case "$OS_TYPE" in
+	  'Linux')	f='-h -q'	;;
+	  *)		f='-p'		;;
+	esac
+	ps "$f" "$1" > /dev/null 2>&1
+ }
+
 Abort()
  {
 	local	mpid f
@@ -730,21 +756,58 @@ Abort()
 		mpid="$MPID"
 		MPID=0
 		Log "Abort: $mpid"
-		kill $mpid
+		IsUp $mpid && kill $mpid
 		mv -f "$lockf" "${lockf}.old"
 		SetStoppedAt
 		[ $RESUME -ne 0 ] && Log "Stopped at: $OUT"
-		case "$OS_TYPE" in
-		  'Linux')	f='-h -q'	;;
-		  *)		f='-p'		;;
-		esac
 		sleep 1
-		ps $f "$mpid" >/dev/null 2>&1 && Log "Ninja: $mpid" && kill -9 $mpid
+		IsUp $mpid && Log "Ninja: $mpid" && kill -9 $mpid
 		exit 66
 	else
 		Log "Lost player"
 		cat "$lockf" >> "$LOGF"
 	fi
+ }
+
+PlayerArgs()
+ {
+	local	subf vol tsiz seek
+
+	seek=''
+	[ $RESUME -ne 0 ] && GetStoppedAt && [ -n "$OUT" ] && seek="$OUT"
+
+	OUT="$PLARGS"
+	case "$PLAYER" in
+	  # Don't mess with screensaver, quiet, full screen, subtitles, seek, 
+	  'mplayer')
+		# Sometimes still using 80% cpu - I think not right -vo
+		[ $TEST -eq 0 ] && OUT="${OUT} -really-quiet"
+	  	OUT="${OUT} -nostop-screensaver -fs -title Aerialist -vo vdpau"
+		if [ -n "$1" ]; then
+			OUT="${OUT} -sub \"$1\""
+			[ -n "$TEXTSIZE" ] && OUT="${OUT} -subfont-text-scale $TEXTSIZE -subfont-autoscale 0"
+			[ -n "$TEXTRGB" ] && OUT="${OUT} -ass -ass-color $TEXTRGB"
+		fi
+	  	[ -n "$PANSCAN" ] && OUT="${OUT} -panscan $PANSCAN"
+	  	[ -n "$seek" ] && OUT="${OUT} -ss $seek"
+		[ -z "$SOUND" -o "$SOUND" = '0' ] && OUT="${OUT} -nosound" || OUT="${OUT} -volume $SOUND"
+		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} -really-quiet -wid $XSCREENSAVER_WINDOW"
+	  ;;
+	  'mpv')
+		[ $TEST -eq 0 ] && OUT="${OUT} --really-quiet"
+		OUT="${OUT} --stop-screensaver=no --volume=$SOUND --fs"
+		if [ -n "$1" ]; then
+			OUT="${OUT} --sub-file=$1"
+			[ -n "$TEXTSIZE" ] && OUT="${OUT} --sub-font-size=$(($TEXTSIZE * 8))"
+			[ -n "$TEXTRGB" ] && OUT="${OUT} --sub-color=#$TEXTRGB"
+		fi
+	  	[ -n "$seek" ] && OUT="${OUT} --start=$seek"
+		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} --wid=$XSCREENSAVER_WINDOW"
+	  ;;
+	  'vlc')
+		OUT="--no-disable-screensaver"
+	  ;;
+	esac	
  }
 
 # Lock for this display
@@ -756,7 +819,7 @@ if [ -e "$lockf" ]; then
 	  *)		f='-p'		;;
 	esac
 	ps $f "$pid" >/dev/null 2>&1 && echo "Aerialist locked by $pid in $lockf" && exit 33
-	pid=$(tail -n 1 "$lockf")	# mplayer
+	pid=$(tail -n 1 "$lockf")	# $PLAYER
 	ps $f "$pid" >/dev/null 2>&1 && kill -9 "$pid"
 fi
 echo $$ > "$lockf"
@@ -786,9 +849,7 @@ while [ -n "$1" ]; do a=0; case "$1" in
 esac; shift; [ $a -ne 0 -a -n "$1" ] && shift; done
 
 # Are we inside xscreensaver?
-if [ -n "$XSCREENSAVER_WINDOW" ]; then
-	WINDOWID="-wid $XSCREENSAVER_WINDOW"
-else
+if [ -z "$XSCREENSAVER_WINDOW" ]; then
 	TEST=2
 	# Are we installed?
 	if ! IsInstalled; then
@@ -806,7 +867,7 @@ Season:		$SEASON
 Movies:		$AERIAL
 Prefs:		$PREFS
 Lockfile:	$lockf
-Mplayer:	$(which mplayer)
+Player:		$(which $PLAYER)
 Curl:		$(which curl)
 YTDL:		$(which youtube-dl)
 Process:	$$
@@ -814,7 +875,7 @@ Process:	$$
 fi
 
 # Plays the video - local and remote
-for i in 'mplayer' 'curl'; do
+for i in "$PLAYER" 'curl'; do
 	command -v "$i" >/dev/null 2>&1 || Throw "${0##*/} requires $i but it's not installed. Aborting."
 done
 
@@ -854,11 +915,7 @@ while [ 9 -eq 9 ]; do
 	# Create SUBTITLE blurp at 0,5,10,15 minutes
 	VideoDescription "$st"; st="$OUT"					# Allow for overriding file name / Apple description
 	Subtitles "$st" > "$SUBTITLE"
-
-	[ -z "$SOUND" -o "$SOUND" = '0' ] && snd='-nosound' || snd="-volume $SOUND"
-	seek='' && [ $RESUME -ne 0 ] && GetStoppedAt && [ -n "$OUT" ] && seek="-ss $OUT"
-	[ -n "$TEXTSIZE" ] && tsiz="-subfont-text-scale $TEXTSIZE -subfont-autoscale 0" || tsiz=''
-	[ -n "$TEXTRGB" ] && tsiz="$tsiz -ass -ass-color $TEXTRGB"
+	PlayerArgs "$SUBTITLE"; args="$OUT"
 
 	STARTAT=$(date +%s)
 
@@ -868,23 +925,23 @@ while [ 9 -eq 9 ]; do
 		[ "$CHOICE" = "${CHOICE#*:}" ] && ls -lh "$CHOICE"
 		echo '
 Press return to play'
-		echo "Command: mplayer $snd -nolirc $WINDOWID -fs \"$CHOICE\" -sub \"$SUBTITLE\" -panscan $PANSCAN" $seek $tsiz
+		echo "Test mode: $PLAYER $args \"$CHOICE\""
 		echo 'Press q during playback to exit'
 		read line
-		[ "$line" != 'q' ] && mplayer $snd -nolirc $WINDOWID -fs "$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz
+		[ "$line" != 'q' ] && "$PLAYER" $args "$CHOICE"
 		exit 1
 	elif [ -s "$CHOICE" ]; then
 		# file is on filesystem so just play it
-		Log "Local: $CHOICE"
-		mplayer $snd -really-quiet -nolirc -nostop-xscreensaver $WINDOWID -fs "$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz >> "$LOGF" 2>&1 &
+		"$PLAYER" $args "$CHOICE" >> "$LOGF" 2>&1 &
 	    MPID=$!
 	    SetStoppedAt 0
+		Log "Local ($MPID): $PLAYER $args \"$CHOICE\""
 	elif [ $ONLINE -ne 0 -a "${CHOICE}" != "${CHOICE#*://}" ]; then
 		# no file on filesystem so try to stream it
-		Log "Streaming: $CHOICE"
-		mplayer $snd -really-quiet -nolirc -nostop-xscreensaver $WINDOWID -fs "$ONLINEURL/$CHOICE" -sub "$SUBTITLE" -panscan "$PANSCAN" $seek $tsiz >> "$LOGF" 2>&1  &
+		"$PLAYER" $args "$ONLINEURL/$CHOICE" >> "$LOGF" 2>&1  &
 		MPID=$!
 		SetStoppedAt 0
+		Log "Stream ($MPID): $PLAYER $args \"$ONLINEURL/$CHOICE\""
 	else
 		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is $ONLINE ($ONLINE4K/$ONLINEHDR) ***"
 		exit 99
@@ -902,6 +959,8 @@ done
 #		(See VideoDescription function below)
 #
 #	History
+#	015	GLK	240127	Add (prefer) mpv support, start vlc - reason - mplayer using 80% CPU, mpv 15% ... even with -vo vdpau
+#	014	GLK	240123	Bugs
 #	013	GLK	231227	Fix darwin UID being ro, prompt to install w/ no parameters if not installed
 #	012	GLK	231224	Log download beg/end
 #	011	GLK	231218	Move History here ... makes more sense, settings command
@@ -919,5 +978,5 @@ done
 #	BSD (bourne/dash) compatible
 #
 #	Tested:		on Artix, Void, PopOS, FreeBSD, NetBSD
-#	Requires:	mplayer, awk (install), sed, grep & friends, youtube-dl, curl
+#	Requires:	mplayer (or $PLAYER), awk (install), sed, grep & friends, youtube-dl, curl
 #############################################################################
