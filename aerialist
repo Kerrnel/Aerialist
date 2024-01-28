@@ -22,7 +22,7 @@ gVers=015
 #		Customize by puting overrides into ~/.config/aerialist
 #		in shell format
 #
-#	(p) Public Domain, 2023 by Greg Kerr
+#	(p) Public Domain, 2023-24 by Greg Kerr
 #############################################################################
 #
 #	* Usage
@@ -44,7 +44,6 @@ ONLINETPT='http'			# Transport to get online assets
 CACHE=1						# Download Online videos to AERIAL folder (Apple, YouTube sources)
 TEST=0						# Just show the video that would play
 AERIAL=~/Videos/Aerialist	# Master Path of MOVIES folders (required if ONLINE == 0)
-SEASON='Apple'				# The collection of videos under AERIAL that we will use
 RESUME=1					# Resume video playback from last position when interrupted
 SOUND=0						# 0-100 audio volume, set in ~/.config/aerial if you wish videos with sound or in STABLE
 PANSCAN=1.0					# Crop 16:9 movies - set to 0 to not do it
@@ -68,7 +67,7 @@ STABLE='
 '
 
 PLAYER=''			# Empty to use mpv -> mplayer -> vlc
-PLARGS=''			# Empty to auto choose arguments
+PLARGS=''			# Any additional player arguments
 ############################################################################
 #	End of User interesting section
 
@@ -76,6 +75,7 @@ PLARGS=''			# Empty to auto choose arguments
 # Globals
 MPID=0				# Player pid
 TESTME=''			# Fake a selection with test XYZ (use 'test' 'VideoPath')
+SEASON='Apple'		# The collection of videos under AERIAL that we will use - chosen from STABLE according to time/date
 
 # Markers
 OS_TYPE=$(uname -s)
@@ -242,17 +242,16 @@ Download()
 
 		case "$1" in
 		  'Animals')
-			ytvids='        Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0'
-			ytvids="$ytvids ZPyQh7jjbpE qOXeIip16No eoTpdTU8nTA asTC8fvw0W8"
-			ytvids="$ytvids 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec 3qBfTWuFjbo"
-			ytvids="$ytvids DVTRklHhEsU"
+			ytvids='		Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0 DVTRklHhEsU'
+			ytvids="$ytvids ZPyQh7jjbpE qOXeIip16No eoTpdTU8nTA asTC8fvw0W8 3qBfTWuFjbo"
+			ytvids="$ytvids 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec"
 		  ;;
 		  'Fireplace')
-			ytvids='mKCieTImjvU 6j3hPg0t5fo B0j__sZXiWI 7pTdGR46ZKA'
-			ytvids="$ytvids paiSoYQhaBE KzmtBgqap0s wNwMnGRjgdw bmGsQkLb4yg eYy-ahKKMys"
+			ytvids='		mKCieTImjvU 6j3hPg0t5fo B0j__sZXiWI 7pTdGR46ZKA eYy-ahKKMys'
+			ytvids="$ytvids paiSoYQhaBE KzmtBgqap0s wNwMnGRjgdw bmGsQkLb4yg"
 		  ;;
 		  'Night')
-			ytvids='        B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo'
+			ytvids='		B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo'
 			ytvids="$ytvids pRROyjwdNjA 3Ow0ET-ob3E GX7xOqLgkTM 3G1KBu6H6BM UV07v89nf3g"
 			ytvids="$ytvids 44KvHwRHb3A JpyPwnDaijU zdOTV2RH9IY pOBrBb0gV64 jvTAPzS8glw"
 			ytvids="$ytvids HTeNfkAoUlI REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4"
@@ -302,7 +301,7 @@ Download()
 				" | while read f v; do printf " $f"; done)
 		  ;;
 		  'Sports')
-			ytvids='wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs'
+			ytvids='		wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs'
 			ytvids="$ytvids JEtYYtwX1sM 5X57DS7cvHs yL-4vY9BWL0 7jz0pXSe_kI mTM1_m48IcA"
 			ytvids="$ytvids hEGQZeBBvsA CAs0DjbH92s kE7D7qFayVg _uKWgZpUjYU zd4EIXDjEJ4"
 			ytvids="$ytvids nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw"
@@ -315,23 +314,23 @@ Download()
 			ytvids='ZyCudosHxUA'
 		  ;;
 		  'Beauty')
-			ytvids='	    KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
+			ytvids='		KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
 			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80 swRvDBBOduA k0j4o834vyk n9N8vFA7sig"
 			ytvids="$ytvids LqkD9QrtdN0 IqHVqp2G2B0 IKh6XN5HnaI Z49GnKM4rNs 0L52jQygBOc"
 			ytvids="$ytvids k4RW-nbIqns wv29wxfa5MQ vRClrj9k52s 0xcLi2YFQaA k4RW-nbIqns"
 			ytvids="$ytvids "
 		  ;;
 		  'Music')
-			ytvids='YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ'
+			ytvids='		YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ'
 			ytvids="$ytvids "
 		  ;;
 		  'DIY')
-			ytvids='EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M 207fdj7Wuo '
-			ytvids="$ytvids "
+			ytvids='		EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M -207fdj7Wuo'
+			ytvids="$ytvids 0CdG6qkGfm8"
 		  ;;
 
 		  *)
-			Err "No predefined videos for $1"
+			Err "No predefined videos for Season: $1"
 			return 1
 		  ;;
 		esac
@@ -746,7 +745,8 @@ IsUp()
 	  'Linux')	f='-h -q'	;;
 	  *)		f='-p'		;;
 	esac
-	ps "$f" "$1" > /dev/null 2>&1
+	ps "$f" "$1" > /dev/null 2>&1 && return 1
+	return 0	# This seems backwards
  }
 
 Abort()
@@ -769,6 +769,18 @@ Abort()
 	fi
  }
 
+Scale()
+ {
+	local	n maxs maxd dig	o #	(e.g. 1 100 8 4 -> 0.125)
+	n=$1
+	maxs=$2
+	maxd=$3
+	dig=$4
+	n=$(($n * $dig * $maxd / $maxs))	#	1 -> 0.080; 100 -> 8.000
+	o=$(($n % $dig + $dig))
+	echo $((n / $dig)).${o#1}
+ }
+
 PlayerArgs()
  {
 	local	subf vol tsiz seek
@@ -782,9 +794,9 @@ PlayerArgs()
 	  'mplayer')
 		# Sometimes still using 80% cpu - I think not right -vo
 		[ $TEST -eq 0 ] && OUT="${OUT} -really-quiet"
-	  	OUT="${OUT} -nostop-screensaver -fs -title Aerialist -vo vdpau"
+	  	OUT="${OUT} -nostop-xscreensaver -fs -title Aerialist -framedrop"
 		if [ -n "$1" ]; then
-			OUT="${OUT} -sub \"$1\""
+			OUT="${OUT} -sub $1"
 			[ -n "$TEXTSIZE" ] && OUT="${OUT} -subfont-text-scale $TEXTSIZE -subfont-autoscale 0"
 			[ -n "$TEXTRGB" ] && OUT="${OUT} -ass -ass-color $TEXTRGB"
 		fi
@@ -795,7 +807,8 @@ PlayerArgs()
 	  ;;
 	  'mpv')
 		[ $TEST -eq 0 ] && OUT="${OUT} --really-quiet"
-		OUT="${OUT} --stop-screensaver=no --volume=$SOUND --fs"
+		OUT="${OUT} --stop-screensaver=no --fs --hwdec=auto"
+		[ -n "$SOUND" ] && OUT="${OUT} --volume=$SOUND"
 		if [ -n "$1" ]; then
 			OUT="${OUT} --sub-file=$1"
 			[ -n "$TEXTSIZE" ] && OUT="${OUT} --sub-font-size=$(($TEXTSIZE * 8))"
@@ -805,7 +818,16 @@ PlayerArgs()
 		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} --wid=$XSCREENSAVER_WINDOW"
 	  ;;
 	  'vlc')
-		OUT="--no-disable-screensaver"
+		[ $TEST -eq 0 ] && OUT="${OUT} --quiet --no-qt-error-dialogs"
+		OUT="${OUT} --no-disable-screensaver -f --no-interact --play-and-exit --started-from-file"
+		if [ -n "$1" ]; then
+			OUT="${OUT} --sub-file $1"
+			[ -n "$TEXTSIZE" ] && OUT="${OUT} --sub-text-scale $(($TEXTSIZE * 16))"
+			[ -n "$TEXTRGB" ] && OUT="${OUT} --freetype-color="$(($(echo "ibase=16; $TEXTRGB" | bc) / 256))
+		fi
+	  	[ -n "$seek" ] && OUT="${OUT} --start-time $seek"
+		[ -z "$SOUND" -o "$SOUND" = '0' ] && OUT="${OUT} --no-audio" || OUT="${OUT} --gain "$(Scale $SOUND 100 4 1000)	# Should be 8 - but seems loud
+		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} --drawable-xid $XSCREENSAVER_WINDOW --no-embedded-video"
 	  ;;
 	esac	
  }
