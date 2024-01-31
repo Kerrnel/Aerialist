@@ -1,37 +1,55 @@
 #!/bin/sh
 #############################################################################
-gDate=240127
-gVers=015
+gDate=240130
+gVers=019
 #############################################################################
-#	Aerialist 1.15
+#	Aerialist 1.19
 #
 #	A rewrite of the Aerial screensaver
 #
 #	Linux video screensaver gone wild - featuring
-#		AppleTV online or cached
-#		YouTube via youtube-dl and Seasons
+#
+#		AppleTV online or cached videos
+#		YouTube/Dailymotion etc via yt-dlp/youtube-dl and Seasons
+#
+#		Intermittent title/time overlay
 #		Resume where the video was last interrupted
-#		intermittent title/time overlay
-#		Install / pre-download of videos
-#			Run this same script with 'install' as a parameter
+#
 #		Crontab like selection of season
 #			See "STABLE" below
 #		(e.g. Fireplace at night in Winter, Places, Animals by weekday)
 #
 #	Parameters that are "fun" are up front
-#		Customize by puting overrides into ~/.config/aerialist
-#		in shell format
+#		Customize by putting overrides into ~/.config/aerialist
+#		in shell format - or call script with 'set' or 'settings' to edit
 #
 #	(p) Public Domain, 2023-24 by Greg Kerr
 #############################################################################
 #
-#	* Usage
+#	* Usage - For Terminal invocation or called by xscreensaver
+#
+#	aerialist [cmds][parameters]...
 #	
-#	Call with 'install' (or look at 'install' below to see how) to install
-#		into .xscreensaver file
+#	Cmd			Action
+#	install		install into .xscreensaver file, offer to pre-cache videos
+#	set			Edit ~/.config/aerialist settings
+#	seasons		List seasons
+#	vid [seas]	List videos for a season
+#	cron		List time table for which videos to play, show current
+#	test		Run a test with logging output to terminal
 #
-#	Call with 'online' to force streaming AppleTV
+#	For xscreensaver primarily
+#	online		Use ATV Videos via web only
+#		4k		Use 4k versions of ATVs
+#		hdr		Use HDR versions of ATVs
+#	offline		Use Cached videos only
+#	sound [vol]	Set volume to this %age
+#	aerial		Path to find folders of videos (aka Seasons)
+#	movies		Path to videos - (no seasons)
 #
+#	Call with no parameters to test with logging to terminal
+#	Normally called from xscreensaver to enhance your idle screen
+##
 #############################################################################
 #																			#
 #			Global Parameters												#
@@ -40,37 +58,150 @@ gVers=015
 ONLINE=1					# Allow network video play - set to 2 to FORCE online ONLY
 ONLINE4K=0					# Online 4K option (vs 2K if available)
 ONLINEHDR=0					# Online HDR option (vs SDR if available)
-ONLINETPT='http'			# Transport to get online assets
 CACHE=1						# Download Online videos to AERIAL folder (Apple, YouTube sources)
 TEST=0						# Just show the video that would play
 AERIAL=~/Videos/Aerialist	# Master Path of MOVIES folders (required if ONLINE == 0)
 RESUME=1					# Resume video playback from last position when interrupted
 SOUND=0						# 0-100 audio volume, set in ~/.config/aerial if you wish videos with sound or in STABLE
 PANSCAN=1.0					# Crop 16:9 movies - set to 0 to not do it
+FORMATS=''					# List of formats to play / not play - e.g. -AV1 HEVC to disallow AV1 explicitly allow HEVC (implicitly all others) - requires mediainfo installed
 
 SUBINTERVAL=2				# Description every this many minutes
 SUBREPEATS=55				# Number of times to repeat @ SUBINTERVAL
 TEXTSIZE=4					# %age of screen pixels for label
 TEXTRGB=AA998877			# Text Color
 
-# Winter Fireplace?
+# Add your own seasons and times to play - link
 # Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume SeasonName
-STABLE='
-	*	12-1	2-14	19	7	22	Fireplace
-	*	*		*		19	7	11	Night
-	*	*		*		17	20	1	Sports
-	6	*		*		12	18	13	DIY
-	06	*		*		15	17	19	Music
-	135	*		*		*	*	11	Animals
-	*	*		*		9	17	9	Places
-	*	*		*		*	*	11	Apple
-'
+STABLE="
+	6	1-1		1-31	17	18	0	Example-SilentSundayEveningInJanuary
+$STABLE"
 
+# Add your own video seasons - format Season= id id id id
+BITES="
+MyVideos=		BtoopYV_HdM	dmo:x8g7rts
+$BITES
+"
+
+# A player will be chosen as available if this is empty - but you can override with preferred player
 PLAYER=''			# Empty to use mpv -> mplayer -> vlc
 PLARGS=''			# Any additional player arguments
+ONLINETPT='http'	# Transport to get online assets (http or https)
 ############################################################################
 #	End of User interesting section
 
+
+# Northern Hemishpere Timed/Named
+STABLE='
+	*	12-1	2-14	19	7	22	Fireplace
+	*	*		*		19	7	11	Night
+	*	*		*		16	18	1	Sports
+	6	*		*		12	16	13	DIY
+	06	*		*		16	20	19	Music
+	135	*		*		8	15	11	Animals
+	*	*		*		9	17	9	Places
+	*	12-1	2-29	*	*	15	Winter
+	*	3-1		5-31	*	*	15	Spring
+	*	6-1		8-31	*	*	15	Summer
+	*	9-1		11-30	*	*	15	Autumn
+	*	*		*		*	*	11	Apple
+'
+
+
+# Video sites - last one is default if no prefix on video ID
+# One can add any yt-dlp supported site here with prefix - then use that
+#  prefix in the BITES table below whose Season Title should be put in
+#  the STABLE above
+VITES='
+	dmo:www.dailymotion.com/video/
+	ytb:www.youtube.com/watch?v=
+'
+
+# Online Video IDs - format Season=id id id id Season2= id id id id
+# Where id is [source:]videoid and default source is youtube - see VITES
+# Comments may be used after a # character
+# To add new season(s) in settings extend or replace this
+BITES='
+Animals=	Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0 DVTRklHhEsU
+			ZPyQh7jjbpE qOXeIip16No eoTpdTU8nTA asTC8fvw0W8 3qBfTWuFjbo
+
+Fireplace=	mKCieTImjvU 6j3hPg0t5fo B0j__sZXiWI 7pTdGR46ZKA eYy-ahKKMys
+			paiSoYQhaBE KzmtBgqap0s wNwMnGRjgdw bmGsQkLb4yg
+
+Night=		B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo
+			pRROyjwdNjA 3Ow0ET-ob3E GX7xOqLgkTM 3G1KBu6H6BM UV07v89nf3g
+			44KvHwRHb3A JpyPwnDaijU zdOTV2RH9IY pOBrBb0gV64 jvTAPzS8glw
+			HTeNfkAoUlI	REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4
+			y1doKCK7Dwk qgfd-uWTVwg bCEMBU9Sk98 B5unCXpegAw DhNMS5mD4ak
+			3Qn7_mljjTg TfqaEJpQmDc veCr5M0rNpo lL5RPnXyklk pyu-djhQFVU
+			6zh-LN-dObY DslTxXsDLsw gosjiD288Jk
+
+Places=		Ee0Qh_nIoHw	#	Afrika
+			CHSnz0bCaUk	#	Alaska
+			YDL8HbY9ENU	#	Argentina
+			bQmzk05I3nw	#	Australia
+			eaLWXfsuxf0	#	Bali
+			Vmx6I1vQFSs	#	Bavaria
+			jpZaVpjWbbI	#	Caribbean
+			-TXh2rrNshI	#	China
+			gig9-jO7YL4	#	Earth
+			EBsnEiDTqEQ	#	Egypt
+			0EdVsuDq28M	#	Europe
+			dmo:x7vvcvj	#	Florida
+			6lxg0NKZjOE	#	France
+			8_j64iq_hTE	#	Germany
+			li-_BLtq58w	#	Germany II
+			rFVpSwgCkCo	#	Hawaii
+			8SO273jh_LI	#	India
+			ycDLfQ1Cv_Y	#	Ireland
+			56gZuTy6xIc	#	Italy
+			G5RpJwCJDqc	#	Japan
+			Cjl70Cqo3Q4	#	Kashmir
+			-s0vUJamgEw	#	Namibia
+			gCRNEJxDJKM	#	Nepal
+			vtxVK3sbZ0o	#	New Zealand
+			dmo:x7x1xw3 #	North Carolina
+			CxwJrzEdw1U	#	Norway
+			jjP12kUYUs4	#	Philippines
+			mTm0WKWGpas	#	Saudi Arabia
+			qEjzVTo2eTs	#	Slovenia 8K
+			VzqWO5EaSps	#	South Africa
+			NGoCQ3HyxQs	#	Sri Lanka
+			kVxTrhojpFI	#	Switzerland
+			DEAcPVg8V7U	#	Tanzania
+			hXa-WgLCyok	#	Thailand
+			4Z9mUjtFJYY	#	USA
+			_K-Gtb_ywfg	#	Venezuela
+			64bA0CxioCE	#	Vietnam
+			Ihiy9A__QM8 #	Wonders
+			dmo:x8g7rts	#	Zanzibar
+
+Sports=		wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs
+			JEtYYtwX1sM 5X57DS7cvHs yL-4vY9BWL0 7jz0pXSe_kI mTM1_m48IcA
+			hEGQZeBBvsA CAs0DjbH92s kE7D7qFayVg _uKWgZpUjYU zd4EIXDjEJ4
+			nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw
+			bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4
+			KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU
+			nwpX4zEW1wc tx1-fDueJxg D7v4VAB1NoY J2v2k06Rp-U rC4UVSqi0qc
+			9nuGI9fnOME V55DRE9vJSs
+
+Winter=		ZyCudosHxUA 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec UmhbcBClFm8
+
+Spring=		UZ9uyQI3pF0 ikn24Lvyb5U LLk0rwWq-E8 Y88Nm7RsZAk hOdhtImnb5Y
+
+Summer=		o4O_KoXeCFI kBfawqIMgYI RhHNcTJv9fY Bpe4ptn2jCI -l9E7OAexQM
+			p9wjJYVTdfk
+
+Autumn=		jeKABSyMlTU 6qxeqGEFDt4 qJDK-kdRZJE lN9LdcAQnjw xqDuf48WyzI
+			tOAwkxO2Uj8
+
+Music=		YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ
+			djV11Xbc914 sBzrzS1Ag_g rMqayQ-U74s kHLHSlExFis JF8BRvqGCNs
+			p7FCgw_GlWc wfN4PVaOU5Q rP9Z5Pc8cRM G4LIM9VYhB0 c18441Eh_WE
+
+DIY=		EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M -207fdj7Wuo
+			0CdG6qkGfm8
+'
 
 # Globals
 MPID=0				# Player pid
@@ -107,6 +238,13 @@ for i in 'mpv' 'mplayer' 'vlc'; do
 	PLARGS=''
 done
 
+# Modern youtube-dl?
+YTDL=''
+for i in 'yt-dlp' 'youtube-dl'; do
+	[ -z "$YTDL" ] && which "$i" >/dev/null 2>&1 && YTDL="$i"
+done
+
+
 Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;		}
 Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF";	}
 Dbg()	{	[ $TEST -ne 0 ] && Msg "+++ [$@] +++";	}
@@ -115,7 +253,7 @@ Throw()	{	Err "$@"; exit 44;						}
 
 SeasonMatch()
  {
-	# Process SEASON table (on stdin) and echo firast matched Season - or $1 if no match - forked so everything local really
+	# Process SEASON table (on stdin) and echo first matched Season - or $1 if no match - forked so everything local really
 	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd
 
 	M=$(date "+%d %m %w %H %M");	Dbg "Season.: $M"
@@ -178,9 +316,12 @@ SourceSet()
 	if [ -z "$MOVIES" ]; then
 		MOVIES="$AERIAL/$SEASON"
 		Download "$SEASON"
-	elif [ ! -e "$AERIAL" ]; then
+	elif [ ! -e "$AERIAL" ]; then		# If we have found them elsewhere; convenience link in e.g. ~/Videos
 		ln -s "${MOVIES%/*}" "$AERIAL"
 	fi
+
+	# Continue unfinished downloads until folder count matches
+	# CacheOne "$MOVIES" "$SEASON"
 
 	# End with / for find
 	[ "$MOVIES" = "${MOVIES%/}" ] && MOVIES="${MOVIES}/"
@@ -195,7 +336,8 @@ SourceSet()
 
 SeasonSet()
  {
-	local	s
+	local	s skip
+
 	# Get Season / Sound
 	if [ $ONLINE -gt 1 ]; then
 		s='Apple'
@@ -212,149 +354,110 @@ SeasonSet()
 	SourceSet "$s"
  }
 
+VideoSite()
+ {
+	local	s
+	for s in $VITES; do
+		[ "${s%%:*}" = "$1" ] && OUT="${s#*:}" && return 0
+	done
+	OUT="${s#*:}"
+ }
+
+VideoBites()
+ {
+	# Return IDs of videos for season in $1 - or list of seasons if $1 is empty
+	local	x s cs
+	echo "$BITES" | while read x; do if [ -n "$x" ]; then
+		x="${x%%#*}"
+		[ "$x" != "${x#*=}" ] && s="${x%%=*}" && [ -n "$s" ] && cs="$s" && [ -z "$1" ] && echo "$cs"
+		[ "$cs" = "$1" ] && echo "${x#*=}"
+	fi; done
+ }
+
 Download()
  {
-	local line st url n i f v
+	# $1 is Season to download
+	# $2 if 'one' - just download one and return
+	#	if 'cache' - download one in background
+	#	if 'count' - just return number of videos for this season (to compare e.g. to folder count) in $OUT
+	local line st url n i f v cnt
 
 	# Download a Season's content from YouTube
+	cnt=0
 	if [ "$1" = 'Apple' ]; then
 		Msg "Apple season (CACHE: $CACHE)"
 		if [ $CACHE -ne 0 ]; then
 			mkdir -p "$MOVIES"
 			cd "$MOVIES"
 			AppleVideo
-			cat "$OUT" | while read line; do if [ -n "$line" ]; then
-				ApplePie "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
-				Dbg "AppleTV:	$st ($url)"
-				for i in *"${n}"; do [ -s "$i" ] && n=''; done
-				if [ -n "$n" ]; then
-					Log "Downloading:	$url to $MOVIES"
-					curl -o "${st}-${n}" "$url"
-					Log "Downloaded:	$n"
-				else
-					Log "ATV:	${url##*/} already exists"
-				fi
-			fi; done
+			if [ "$2" = 'count' ]; then
+				while read line; do cnt=$((1 + $cnt)); done < "$OUT"
+				OUT=$cnt
+				return 0
+			else
+				while read line; do if [ -n "$line" ]; then
+					ApplePie "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
+					Dbg "AppleTV:	$st ($url)"
+					for i in *"${n}"; do [ -s "$i" ] && n=''; done
+					if [ -n "$n" ]; then
+						if [ "$2" = 'cache' ]; then
+							Log "Caching:	$url to $MOVIES"
+							curl -o "${st}-${n}" "$url" &
+							return 2
+						else
+							Log "Downloading:	$url to $MOVIES"
+							curl -o "${st}-${n}" "$url"
+							Log "Downloaded:	$n"
+							[ "$2" = 'one' ] && return 1
+						fi
+					else
+						Log "ATV:	${url##*/} already exists"
+					fi
+				fi; done < "$OUT"
+			fi
 		fi
 		return 0
-	elif which 'youtube-dl' >/dev/null 2>&1 && [ $CACHE -ne 0 ]; then
-		local	ytvids v f
+	elif [ -n "$YTDL" -a $CACHE -ne 0 ]; then
+		local	vIds v f src
 
-		case "$1" in
-		  'Animals')
-			ytvids='		Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0 DVTRklHhEsU'
-			ytvids="$ytvids ZPyQh7jjbpE qOXeIip16No eoTpdTU8nTA asTC8fvw0W8 3qBfTWuFjbo"
-			ytvids="$ytvids 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec"
-		  ;;
-		  'Fireplace')
-			ytvids='		mKCieTImjvU 6j3hPg0t5fo B0j__sZXiWI 7pTdGR46ZKA eYy-ahKKMys'
-			ytvids="$ytvids paiSoYQhaBE KzmtBgqap0s wNwMnGRjgdw bmGsQkLb4yg"
-		  ;;
-		  'Night')
-			ytvids='		B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo'
-			ytvids="$ytvids pRROyjwdNjA 3Ow0ET-ob3E GX7xOqLgkTM 3G1KBu6H6BM UV07v89nf3g"
-			ytvids="$ytvids 44KvHwRHb3A JpyPwnDaijU zdOTV2RH9IY pOBrBb0gV64 jvTAPzS8glw"
-			ytvids="$ytvids HTeNfkAoUlI REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4"
-			ytvids="$ytvids y1doKCK7Dwk qgfd-uWTVwg bCEMBU9Sk98 B5unCXpegAw DhNMS5mD4ak"
-			ytvids="$ytvids 3Qn7_mljjTg TfqaEJpQmDc veCr5M0rNpo lL5RPnXyklk pyu-djhQFVU"
-			ytvids="$ytvids 6zh-LN-dObY DslTxXsDLsw gosjiD288Jk"
-		  ;;
-		  'Places')
-			ytvids=$(echo "
-				Ee0Qh_nIoHw	#	Afrika
-				CHSnz0bCaUk	#	Alaska 8K
-				YDL8HbY9ENU	#	Argentina
-				bQmzk05I3nw	#	Australia
-				eaLWXfsuxf0	#	o2ZxJA9CSJg	(too big) #	Bali
-				Vmx6I1vQFSs	#	Bavaria
-				jpZaVpjWbbI	#	Caribbean
-				-TXh2rrNshI	#	China
-				gig9-jO7YL4	#	Earth
-				EBsnEiDTqEQ	#	Egypt
-				0EdVsuDq28M	#	Europe
-				6lxg0NKZjOE	#	France
-				8_j64iq_hTE	#	Germany
-				li-_BLtq58w	#	Germany II
-				rFVpSwgCkCo	#	Hawaii 8K
-				8SO273jh_LI	#	India
-				ycDLfQ1Cv_Y	#	Ireland
-				56gZuTy6xIc	#	Italy
-				G5RpJwCJDqc	#	Japan
-				Cjl70Cqo3Q4	#	Kashmir
-				-s0vUJamgEw	#	Namibia
-				gCRNEJxDJKM	#	Nepal
-				vtxVK3sbZ0o	#	New Zealand
-				CxwJrzEdw1U	#	Norway
-				jjP12kUYUs4	#	Philippines
-				mTm0WKWGpas	#	Saudi Arabia
-				qEjzVTo2eTs	#	Slovenia 8K
-				VzqWO5EaSps	#	South Africa
-				NGoCQ3HyxQs	#	Sri Lanka
-				SG2rqrGBWiU #	Sudan
-				kVxTrhojpFI	#	fR1nGxW_OP4	(too big) #	Switzerland
-				DEAcPVg8V7U	#	Tanzania
-				hXa-WgLCyok	#	vz7y5a-dtu4	(too big) #	Thailand
-				4Z9mUjtFJYY	#	USA
-				_K-Gtb_ywfg	#	Venezuela
-				64bA0CxioCE	#	MbXLt7OwEXI	(too big) #	Vietnam
-				Ihiy9A__QM8 #	Wonders
-				" | while read f v; do printf " $f"; done)
-		  ;;
-		  'Sports')
-			ytvids='		wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs'
-			ytvids="$ytvids JEtYYtwX1sM 5X57DS7cvHs yL-4vY9BWL0 7jz0pXSe_kI mTM1_m48IcA"
-			ytvids="$ytvids hEGQZeBBvsA CAs0DjbH92s kE7D7qFayVg _uKWgZpUjYU zd4EIXDjEJ4"
-			ytvids="$ytvids nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw"
-			ytvids="$ytvids bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4"
-			ytvids="$ytvids KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU"
-			ytvids="$ytvids nwpX4zEW1wc tx1-fDueJxg D7v4VAB1NoY J2v2k06Rp-U rC4UVSqi0qc"
-			ytvids="$ytvids 9nuGI9fnOME V55DRE9vJSs"
-		  ;;
-		  'Winter')
-			ytvids='ZyCudosHxUA'
-		  ;;
-		  'Beauty')
-			ytvids='		KocZ9190Epk 5iQzny094FM eaUZOwgOw1c nRvDqfHxgpg PttWBnSWlIc'
-			ytvids="$ytvids uI3T7zmyNFs ExEypo4nU80 swRvDBBOduA k0j4o834vyk n9N8vFA7sig"
-			ytvids="$ytvids LqkD9QrtdN0 IqHVqp2G2B0 IKh6XN5HnaI Z49GnKM4rNs 0L52jQygBOc"
-			ytvids="$ytvids k4RW-nbIqns wv29wxfa5MQ vRClrj9k52s 0xcLi2YFQaA k4RW-nbIqns"
-			ytvids="$ytvids "
-		  ;;
-		  'Music')
-			ytvids='		YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ'
-			ytvids="$ytvids "
-		  ;;
-		  'DIY')
-			ytvids='		EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M -207fdj7Wuo'
-			ytvids="$ytvids 0CdG6qkGfm8"
-		  ;;
-
-		  *)
-			Err "No predefined videos for Season: $1"
-			return 1
-		  ;;
-		esac
+		vIds=$(VideoBites "$1")
+		[ -z "$vIds" ] && Err "No predefined videos for Season: $1" && return 1
 
 		mkdir -p "$MOVIES"
 		if [ -d "$MOVIES" ]; then
 			cd "$MOVIES"
 			# yt-dlp names title [id].xyz - youtube-dl names title-id.xyz (where id can contain a '-')
-			for v in $ytvids; do
-				for f in *"${v}"*; do if [ -s "$f" ]; then
-					f="${f%.*}"
-					f="${f%]*}"
-					f="${f##*[}"
-					while [ ${#f} -gt 11 -a "${f}" != "${f#*-}" ]; do
-						f="${f#*-}"	# ID might have '-' in it anywhere
-					done
-					[ "$f" = "$v" ] && v=''
-				fi; done
-				if [ -n "$v" ]; then
-					Log "Downloading YT:	$v in $MOVIES"
-					youtube-dl "https://www.youtube.com/watch?v=$v"
-					Log "Downloaded YT:	$v"
+			for v in $vIds; do
+				if [ "$2" = 'count' ]; then
+					cnt=$((1 + $cnt))
 				else
-					Log "Already have:	$f in $1"
+					src="${v%%:*}"
+					v="${v#$src:}"
+					[ -z "$src" ] && src='YT'
+					for f in *"${v}"*; do if [ -s "$f" ]; then
+						f="${f%.*}"
+						f="${f%]*}"
+						f="${f##*[}"
+						while [ ${#f} -gt 11 -a "${f}" != "${f#*-}" ]; do
+							f="${f#*-}"	# ID might have '-' in it anywhere
+						done
+						[ "$f" = "$v" ] && v=''
+					fi; done
+					if [ -n "$v" ]; then
+						VideoSite "$src"; site="$OUT"
+						if [ "$2" = 'cache' ]; then
+							Log "Caching $src:	$v in $MOVIES"
+							"$YTDL" "${ONLINETPT}://${site}${v}" &
+							return 2
+						else
+							Log "Downloading $src:	$v in $MOVIES"
+							"$YTDL" "${ONLINETPT}://${site}${v}"
+							Log "Downloaded $src:	$v"
+							[ "$2" = 'one' ] && return 1
+						fi
+					else
+						Log "Already have:	$f in $1"
+					fi
 				fi
 			done
 		else
@@ -363,6 +466,7 @@ Download()
 	else
 		Err "No youtube-dl + CACHE settign to populate $MOVIES for $1"
 	fi
+	[ "$2" = 'count' ] && OUT=$cnt
  }
 
 IsInstalled()
@@ -448,7 +552,7 @@ Type any parameters to add when started separated with a space:
 
 	echo "
 Needed Programs (Set up XScreenSaver in its GUI)
-Youtube-DL:	$(which youtube-dl 2>&1)
+Youtube-DL:	$(which $YTDL 2>&1)
 Curl:		$(which curl 2>&1)
 Player:	$(which $PLAYER 2>&1)
 XScreenSaver:	$(which xscreensaver 2>&1)
@@ -590,9 +694,35 @@ AppleVideo()
 	OUT="$avu"
  }
 
-ChooseVideo()
+FormatIsOK()
  {
-	local	n i hour
+	local	i f
+
+	if [ -n "$FORMATS" ]; then
+		if which 'mediainfo' >/dev/null 2>&1; then
+			f=$(mediainfo --Inform="Video;%Format%" "$CHOICE")
+			if [ -n "$f" ]; then
+				Dbg "Format: $f"
+				OUT="$f"
+				for i in $FORMATS; do
+					[ "$i" = "$f" ] && return 0
+					[ "${i#-}" = "$f" ] && return 1
+				done
+				return 0
+			else
+				Dbg "mediainfo returned no format for: $CHOICE"
+			fi
+		else
+			Dbg "FORMATS is specified as $FORMATS but mediainfo is not installed."
+		fi
+	fi
+	OUT=''
+ }
+
+ProposeVideo()
+ {
+	# Select a video according to SEASON - but may be wrong format
+	local	n i hour w
 
 	SeasonSet	# Select right set of videos
 
@@ -606,6 +736,9 @@ ChooseVideo()
 			find "$MOVIES" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o -iname '*.webm' > "$VIDEODB"
 			n=$(wc -l "$VIDEODB"); n="${n%% *}"
 			Dbg "Found:	$n videos"
+			# Start a background caching process if videos are less than expected
+			Download "$SEASON" 'count'; w=$OUT
+			[ $n -lt $w ] && Dbg "Want: $n videos" && Download "$SEASON" 'cache'
 		else
 			n=0
 		fi
@@ -613,6 +746,7 @@ ChooseVideo()
 			[ $ONLINE -eq 0 ] && Throw "No videos in $MOVIES"
 			SeasonSet 'Apple'
 			AppleVideo "$VIDEODB"
+			n=$(wc -l "$VIDEODB"); n="${n%% *}"
 		fi
 	fi
 
@@ -621,7 +755,18 @@ ChooseVideo()
 	[ -n "$TESTME" ] && Msg "Test override: $TESTME" && OUT="$TESTME" && TESTME=''
 	CHOICE="$OUT"
 	[ -z "$CHOICE" ] && Throw "No choice in $VIDEODB"
-}
+ }
+
+ChooseVideo()
+ {
+	local	i=0
+
+	while [ $i -lt 11 ]; do
+		ProposeVideo
+		FormatIsOK && return 0 || Log "Ignoring format: $OUT from $CHOICE"
+		i=$((1 + $i))
+	done
+ }
 
 VideoDescription()
  {
@@ -745,8 +890,7 @@ IsUp()
 	  'Linux')	f='-h -q'	;;
 	  *)		f='-p'		;;
 	esac
-	ps "$f" "$1" > /dev/null 2>&1 && return 1
-	return 0	# This seems backwards
+	ps $f "$1" > /dev/null 2>&1
  }
 
 Abort()
@@ -788,7 +932,7 @@ PlayerArgs()
 	seek=''
 	[ $RESUME -ne 0 ] && GetStoppedAt && [ -n "$OUT" ] && seek="$OUT"
 
-	OUT="$PLARGS"
+	OUT=''
 	case "$PLAYER" in
 	  # Don't mess with screensaver, quiet, full screen, subtitles, seek, 
 	  'mplayer')
@@ -807,7 +951,10 @@ PlayerArgs()
 	  ;;
 	  'mpv')
 		[ $TEST -eq 0 ] && OUT="${OUT} --really-quiet"
-		OUT="${OUT} --stop-screensaver=no --fs --hwdec=auto"
+		OUT="${OUT} --stop-screensaver=no --fs"		# Framedrop - auto in mpv
+		OUT="${OUT} --hwdec=auto-safe"				# auto, auto-safe
+#		OUT="${OUT} --vo=gpu"
+#		OUT="${OUT} --vo=vdpau"
 		[ -n "$SOUND" ] && OUT="${OUT} --volume=$SOUND"
 		if [ -n "$1" ]; then
 			OUT="${OUT} --sub-file=$1"
@@ -830,6 +977,7 @@ PlayerArgs()
 		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} --drawable-xid $XSCREENSAVER_WINDOW --no-embedded-video"
 	  ;;
 	esac	
+	OUT="${OUT} $PLARGS"
  }
 
 # Lock for this display
@@ -858,13 +1006,25 @@ while [ -n "$1" ]; do a=0; case "$1" in
   'hdr')		ONLINEHDR=1					;;	# AppleTV Video quality
   '4k')			ONLINE4K=1					;;
   'test')		TEST=1; TESTME="$2"; a=1	;;	# Test one video file
+  'seas'*)		VideoBites; exit 0			;;	# Show seasons
+  'vid'*)		VideoBites "$2"; exit 0		;;	# Show videos
+  'cron'*)		echo "$STABLE"; TEST=1
+				SeasonSet; exit 0			;;	# Show Time Table and current choice
   'set'*)
 	for i in 'joe' 'pico' 'nano' 'vi' 'emacs'; do
 		[ -z "$EDITOR" ] && which "$i" > /dev/null 2>&1 && EDITOR="$i"
 	done
 	if [ ! -e "$PREFS" ]; then
 		head -n 1 "$0" > "$PREFS"
-		head -n 70 "$0" | tail -n 35 >> "$PREFS"
+		echo "#
+#
+#	Aerialist $gVers Preferences
+#
+#	$(date)
+#
+#	Remove any lines you do not change (if you like)
+#" >> "$PREFS"
+		head -n 90 "$0" | tail -n 40 >> "$PREFS"
 	fi
 	exec "$EDITOR" "$PREFS"; exit 0
   ;;
@@ -888,10 +1048,12 @@ if [ $TEST -ne 0 ]; then
 Season:		$SEASON
 Movies:		$AERIAL
 Prefs:		$PREFS
+Formats:	$FORMATS
 Lockfile:	$lockf
 Player:		$(which $PLAYER)
 Curl:		$(which curl)
-YTDL:		$(which youtube-dl)
+YouTube:	$YTDL
+MediaInfo:	$(which mediainfo)
 Process:	$$
 "
 fi
@@ -910,7 +1072,7 @@ while [ 9 -eq 9 ]; do
 	ChooseVideo
 
 	if [ "$SEASON" != 'Apple' ]; then				# Offline (vs AppleTV)?
-		Dbg "No pie"
+		Dbg "No pie: $SEASON"
 		st="${CHOICE##*/}";	st="${st%%.*}";	st="${st%%-*}"	# Default title - drop extension, youtube ID
 	else
 		ApplePie "$CHOICE";	CHOICE="$OUT"; st="$OU2"
@@ -920,16 +1082,15 @@ while [ 9 -eq 9 ]; do
 			if [ ! -s "${MOVIES}$f" ]; then
 				# Changed or no name in front of -
 				for i in "${MOVIES}"*"$CHOICE"; do [ -s "$i" ] && f="$i"; done
-				[ $TEST -ne 0 -a ! -s "$MOVIES$f" ] && Msg "Cache ON, press return to download to $f in background" && read line
+				[ $TEST -ne 0 -a ! -s "$MOVIES$f" ] && Msg "Cache ON, press return to download to $f in background" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
 			fi
 			for i in "${MOVIES}"/*"${CHOICE##*/}"; do [ -s "$i" ] && CHOICE=''; done
 			if [ -z "$CHOICE" ]; then
 				CHOICE="${MOVIES}$f"
-				Dbg "Using Cache"
+				Dbg "Using Cache: $f"
 			else
-				Log "Background DL: $CHOICE to $MOVIES$f"
-				mkdir -p "$MOVIES"
-				curl -o "$MOVIES$f" "$CHOICE" >/dev/null 2>&1 &	# Sleeping and waiting did not work when tested
+				Log "Background DL: $CHOICE to $MOVIES$f"e
+				Download 'Apple' 'cache'
 			fi
 		fi
 	fi
@@ -960,7 +1121,7 @@ Press return to play'
 		Log "Local ($MPID): $PLAYER $args \"$CHOICE\""
 	elif [ $ONLINE -ne 0 -a "${CHOICE}" != "${CHOICE#*://}" ]; then
 		# no file on filesystem so try to stream it
-		"$PLAYER" $args "$ONLINEURL/$CHOICE" >> "$LOGF" 2>&1  &
+		"$PLAYER" $args "$ONLINEURL/$CHOICE" >> "$LOGF" 2>&1 &
 		MPID=$!
 		SetStoppedAt 0
 		Log "Stream ($MPID): $PLAYER $args \"$ONLINEURL/$CHOICE\""
@@ -972,15 +1133,20 @@ Press return to play'
 	wait $MPID
 	err=$?
 	sleep 3	# Sometimes PID hangs around after death
-	[ $err -gt 128 ] && { Log "Killing: $MPID"; kill $MPID ; exit 121; }
+	[ $err -gt 128 ] && { Log "Killing: $MPID"; Abort; exit 121; }
 done
 
-#############################################################################
+#################################################################################################################
 #	* Notes
 #	Video descriptions incomplete - could not find a table of them online
 #		(See VideoDescription function below)
 #
 #	History
+#	020	GLK	240131	Move all video IDs to BITES for extension / replacement in settings
+#	019	GLK	240130	Support Dailymotion via dmo: prefix on video IDs
+#	018	GLK	240129	Some formats not playing well on e.g. 8559U processors (AV1) - skip them via FORMATS
+#	017	GLK	240129	Start one video download per season in backgroundnd if folder count < expected count for season
+#	016	GLK	240129	Added seasons / a few videos for them, started background caching
 #	015	GLK	240127	Add (prefer) mpv support, start vlc - reason - mplayer using 80% CPU, mpv 15% ... even with -vo vdpau
 #	014	GLK	240123	Bugs
 #	013	GLK	231227	Fix darwin UID being ro, prompt to install w/ no parameters if not installed
@@ -1000,5 +1166,5 @@ done
 #	BSD (bourne/dash) compatible
 #
 #	Tested:		on Artix, Void, PopOS, FreeBSD, NetBSD
-#	Requires:	mplayer (or $PLAYER), awk (install), sed, grep & friends, youtube-dl, curl
-#############################################################################
+#	Requires:	mplayer (or $PLAYER), awk (install), sed, grep & friends, youtube-dl, curl, mediainfo for FORMATS
+#################################################################################################################
