@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240130
-gVers=019
+gDate=240131
+gVers=020
 #############################################################################
-#	Aerialist 1.19
+#	Aerialist 1.20
 #
 #	A rewrite of the Aerial screensaver
 #
@@ -36,7 +36,7 @@ gVers=019
 #	seasons		List seasons
 #	vid [seas]	List videos for a season
 #	cron		List time table for which videos to play, show current
-#	test		Run a test with logging output to terminal
+#	test [vid]	Run a test with just this video
 #
 #	For xscreensaver primarily
 #	online		Use ATV Videos via web only
