@@ -3,9 +3,9 @@ Videos Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver plugin) using A
 
 FreeBSD/NetBSD/Darwin/Linux tested
 
-Usage: Aerialist [install][4k][hdr][online][offline][movies path][sound vol][settings][test]
+Usage: Aerialist [cmd[parm]] ...
 
-	Aerialist 1.13
+	Aerialist 1.2
 
 	A rewrite of the Aerial screensaver
 
@@ -23,3 +23,25 @@ Usage: Aerialist [install][4k][hdr][online][offline][movies path][sound vol][set
 	Parameters that are "fun" are up front
 		Customize by putting overrides into ~/.config/aerialist
 		in shell format
+
+	* Usage - For Terminal invocation or called by xscreensaver
+
+	aerialist [cmd[parm]]...
+	
+	Cmd			Action
+	install		install into .xscreensaver file, offer to pre-cache videos
+	set			Edit ~/.config/aerialist settings
+	seasons		List seasons
+	vid [seas]	List videos for a season
+	cron		List time table for which videos to play, show current
+	test [vid]	Run a test with just this video
+
+	For xscreensaver primarily
+	online		Use ATV Videos via web only
+		4k		Use 4k versions of ATVs
+		hdr		Use HDR versions of ATVs
+	offline		Use Cached videos only
+	sound [vol]	Set volume to this %age
+	aerial		Path to find folders of videos (aka Seasons)
+	movies		Path to videos - (no seasons)
+
