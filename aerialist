@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240131
-gVers=020
+gDate=240205
+gVers=022
 #############################################################################
-#	Aerialist 1.20
+#	Aerialist 1.22
 #
 #	A rewrite of the Aerial screensaver
 #
@@ -31,21 +31,23 @@ gVers=020
 #	aerialist [cmds][parameters]...
 #	
 #	Cmd			Action
+#	---			------
 #	install		install into .xscreensaver file, offer to pre-cache videos
 #	set			Edit ~/.config/aerialist settings
 #	seasons		List seasons
-#	vid [seas]	List videos for a season
+#	vid [s]		List videos for a season
 #	cron		List time table for which videos to play, show current
-#	test [vid]	Run a test with just this video
+#	test [p]	Run a test with just this video
 #
-#	For xscreensaver primarily
+#	sound [v]	Set volume to this %age
+#	aerial [p]	Path to find folders of videos (aka Seasons)
+#	movies [p]	Path to videos - (no seasons)
+#
+#	(For xscreensaver primarily)
 #	online		Use ATV Videos via web only
 #		4k		Use 4k versions of ATVs
 #		hdr		Use HDR versions of ATVs
 #	offline		Use Cached videos only
-#	sound [vol]	Set volume to this %age
-#	aerial		Path to find folders of videos (aka Seasons)
-#	movies		Path to videos - (no seasons)
 #
 #	Call with no parameters to test with logging to terminal
 #	Normally called from xscreensaver to enhance your idle screen
@@ -72,9 +74,9 @@ TEXTSIZE=4					# %age of screen pixels for label
 TEXTRGB=AA998877			# Text Color
 
 # Add your own seasons and times to play - link
-# Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume SeasonName
+# Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume Weight SeasonName
 STABLE="
-	6	1-1		1-31	17	18	0	Example-SilentSundayEveningInJanuary
+	6	1-1		1-31	17	18	0	0	Example-SilentSundayEveningInJanuary
 $STABLE"
 
 # Add your own video seasons - format Season= id id id id
@@ -90,21 +92,26 @@ ONLINETPT='http'	# Transport to get online assets (http or https)
 ############################################################################
 #	End of User interesting section
 
-
-# Northern Hemishpere Timed/Named
+####################################################
+#
+#	Season Table - what videos to play by date/time
+#		(Northern Hemishpere Timed/Named)
+#
+#	WD	BDate	EDate	BH	EH	Vo	We	Name
 STABLE='
-	*	12-1	2-14	19	7	22	Fireplace
-	*	*		*		19	7	11	Night
-	*	*		*		16	18	1	Sports
-	6	*		*		12	16	13	DIY
-	06	*		*		16	20	19	Music
-	135	*		*		8	15	11	Animals
-	*	*		*		9	17	9	Places
-	*	12-1	2-29	*	*	15	Winter
-	*	3-1		5-31	*	*	15	Spring
-	*	6-1		8-31	*	*	15	Summer
-	*	9-1		11-30	*	*	15	Autumn
-	*	*		*		*	*	11	Apple
+	*	12-1	2-14	19	7	22	0	Fireplace
+	*	*		*		19	7	11	0	Night
+	*	*		*		16	18	1	90	Sports
+	6	*		*		12	16	13	90	DIY
+	06	*		*		16	20	19	75	Music
+	135	*		*		8	15	11	90	Animals
+	56	*		*		13	17	5	75	Trains
+	*	*		*		9	17	9	75	Places
+	*	12-1	2-29	*	*	15	99	Winter
+	*	3-1		5-31	*	*	15	99	Spring
+	*	6-1		8-31	*	*	15	99	Summer
+	*	9-1		11-30	*	*	15	99	Autumn
+	*	*		*		*	*	11	10	Apple
 '
 
 
@@ -134,7 +141,7 @@ Night=		B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo
 			HTeNfkAoUlI	REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4
 			y1doKCK7Dwk qgfd-uWTVwg bCEMBU9Sk98 B5unCXpegAw DhNMS5mD4ak
 			3Qn7_mljjTg TfqaEJpQmDc veCr5M0rNpo lL5RPnXyklk pyu-djhQFVU
-			6zh-LN-dObY DslTxXsDLsw gosjiD288Jk
+			6zh-LN-dObY DslTxXsDLsw gosjiD288Jk N-FwVPT0BSk
 
 Places=		Ee0Qh_nIoHw	#	Afrika
 			CHSnz0bCaUk	#	Alaska
@@ -155,6 +162,8 @@ Places=		Ee0Qh_nIoHw	#	Afrika
 			8SO273jh_LI	#	India
 			ycDLfQ1Cv_Y	#	Ireland
 			56gZuTy6xIc	#	Italy
+#			aaiLCfShqG0	#	Italy - Rome 2hr
+			E4c21evjzFc	#	Italy - Rome 1hr
 			G5RpJwCJDqc	#	Japan
 			Cjl70Cqo3Q4	#	Kashmir
 			-s0vUJamgEw	#	Namibia
@@ -176,14 +185,30 @@ Places=		Ee0Qh_nIoHw	#	Afrika
 			Ihiy9A__QM8 #	Wonders
 			dmo:x8g7rts	#	Zanzibar
 
+Trains=		_O1eGD8XbTg	#	Africa - Coppertrail
+			YhAfiuqt5zE	#	France - Chamonix to Montenvers
+			dp0PgoELHk0	#	Germany - Berlin
+			ujm_3XB-IYc	#	Hungary Győr to Veszprém
+			m2lC_JG6zdk	#	India
+			yq6KXZ78p-M	#	India - Palakkad, Kerala
+			iNfcXZVRjns	#	India - Ooty to Coonoor
+			njTPvmcPUGs	#	150+ Trains Part 1
+			zomZywCAPTA	#	Montenegro
+			SBd3C9vEkJM	#	Russia - TSE
+			YRyLAR6A1Wc	#	Switzerland
+			Gkr5_sz_uGM	#	USA - Alaska - Skagway
+			MK_RazmDMaA	#	USA - Appalachian Foothills
+			YjF2pk19A7Q	#	USA - Blue Ridge Scenic Railway
+			k9VpqUeI-mk	#	USA	- NH
+
 Sports=		wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs
 			JEtYYtwX1sM 5X57DS7cvHs yL-4vY9BWL0 7jz0pXSe_kI mTM1_m48IcA
 			hEGQZeBBvsA CAs0DjbH92s kE7D7qFayVg _uKWgZpUjYU zd4EIXDjEJ4
-			nnWtfMRuIdE n7F7B4zlDkU BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw
+			nnWtfMRuIdE BFJ6vbwAsgI z1qLQ7P8_Yk hwDI4cbioLw xLoImWFNBiA
 			bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4
 			KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU
 			nwpX4zEW1wc tx1-fDueJxg D7v4VAB1NoY J2v2k06Rp-U rC4UVSqi0qc
-			9nuGI9fnOME V55DRE9vJSs
+			9nuGI9fnOME V55DRE9vJSs 5oBlBwd9HeA zrbpDg1xHSU
 
 Winter=		ZyCudosHxUA 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec UmhbcBClFm8
 
@@ -254,7 +279,7 @@ Throw()	{	Err "$@"; exit 44;						}
 SeasonMatch()
  {
 	# Process SEASON table (on stdin) and echo first matched Season - or $1 if no match - forked so everything local really
-	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd
+	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd x Xs
 
 	M=$(date "+%d %m %w %H %M");	Dbg "Season.: $M"
 	d="${M%% *}";	M="${M#* }"
@@ -262,7 +287,11 @@ SeasonMatch()
 	w="${M%% *}";	M="${M#* }"
 	H="${M%% *}";	M="${M#* }";	H="${H#0}";	M="${M#0}"
 
-	while read pw pdb pde phb phe snd pS; do if [ -n "$pw" ]; then
+	Xs=0	# To do - calculate weight and return for a re-run?
+	while read pw pdb pde phb phe snd x pS; do if [ -n "$pw" ]; then
+		# Old format support - inserted column in 1.2, default it to 0
+		[ -z "$pS" ] && pS="$x" && x=0
+
 		# Dbg "Season?: [W:$pw][D:$pdb[$pde][T:$phb][$phe][S:$pS][D:$d/$m W:$w T:$H/$M]" >&2
 		# * Matches anything
 		if [ "$pw" = '*' -o "${pw#*$w}" != "$pw" ]; then	# Weekday is all or contains today (0-6)
@@ -292,7 +321,8 @@ SeasonMatch()
 			fi
 		fi
 	fi; done
-	echo "$1"	# Default if no match
+
+	[ -n "$1" ] && echo "$1" || echo "$pS"	# Default if no match (provided or last one in table)
  }
 
 SourceSet()
@@ -317,6 +347,7 @@ SourceSet()
 		MOVIES="$AERIAL/$SEASON"
 		Download "$SEASON"
 	elif [ ! -e "$AERIAL" ]; then		# If we have found them elsewhere; convenience link in e.g. ~/Videos
+		Dbg "Linking $MOVIES to $AERIAL"
 		ln -s "${MOVIES%/*}" "$AERIAL"
 	fi
 
@@ -569,10 +600,10 @@ or ctrl-C to stop here.
 	TEST=1	# Show messages to screen
 
 	[ $ONLINE -gt 1 ] && ONLINE=1	# Otherwise no downloading
-	echo "$STABLE" | while read pw pdb pde phb phe snd pS; do if [ -n "$pS" ]; then
-		echo "> __________ > $pS < __________ <"
+	echo "$STABLE" | while read pw pdb pde phb phe snd pri pS; do if [ -n "$pS" ]; then
+		Dbg "> __________ > $pS < __________ <"
 		SeasonSet "$pS"
-		echo "Video Path:	$MOVIES"
+		Dbg "Video Path:	$MOVIES"
 		Download "$pS"
 	fi; done
 
@@ -845,30 +876,34 @@ $1
 	# Dbg "Date Parameters: [$g][$f]"
  }
 
-GetStoppedAt()
+GetState()
  {
-	local line
+	local line f
+
+	f="${CHOICE##*/}"
 	OUT=''
 	if [ $RESUME -ne 0 ]; then
 		if [ -s "$STATEDB" ]; then
 			while read line; do
-				[ "${line##*:}" = "$f" ] && OUT="${line%%:*}"
+				[ "${line##*:}" = "$f" ] && OUT="${line%%:*}" # && Log "State for $f is $OUT"
 			done < "$STATEDB"
 		fi
+		return 0
 	fi
+	return 1
  }
 
-SetStoppedAt()
+SaveState()
  {
 	local	t s line
 	if [ $RESUME -ne 0 ]; then
-		GetStoppedAt; [ -z "$OUT" ] && OUT=0
+		GetState; [ -z "$OUT" ] && OUT=0
 		if [ "$1" = '0' ]; then
 			t=0
-			[ $OUT -eq 0 ] && return
+			[ $OUT -eq 0 ] && return 0
 		else
 			s=$(( $(date +%s) - $STARTAT ))	# How many seconds have played
-			t=$((OUT + $s))	# Played before + played now
+			t=$(($OUT + $s))	# Played before + played now
 		fi
 		echo "$t:${CHOICE##*/}" > "${STATEDB}.new"
 		if [ -s "$STATEDB" ]; then
@@ -879,7 +914,7 @@ SetStoppedAt()
 		fi
 		cp "${STATEDB}.new" "${STATEDB}"
 		rm -f "${STATEDB}.old"
-		OUT="$t"
+		OUT=$t
 	fi
  }
 
@@ -902,7 +937,7 @@ Abort()
 		Log "Abort: $mpid"
 		IsUp $mpid && kill $mpid
 		mv -f "$lockf" "${lockf}.old"
-		SetStoppedAt
+		SaveState
 		[ $RESUME -ne 0 ] && Log "Stopped at: $OUT"
 		sleep 1
 		IsUp $mpid && Log "Ninja: $mpid" && kill -9 $mpid
@@ -930,7 +965,7 @@ PlayerArgs()
 	local	subf vol tsiz seek
 
 	seek=''
-	[ $RESUME -ne 0 ] && GetStoppedAt && [ -n "$OUT" ] && seek="$OUT"
+	[ $RESUME -ne 0 ] && GetState && [ -n "$OUT" ] && seek="$OUT"
 
 	OUT=''
 	case "$PLAYER" in
@@ -1117,13 +1152,11 @@ Press return to play'
 		# file is on filesystem so just play it
 		"$PLAYER" $args "$CHOICE" >> "$LOGF" 2>&1 &
 	    MPID=$!
-	    SetStoppedAt 0
 		Log "Local ($MPID): $PLAYER $args \"$CHOICE\""
 	elif [ $ONLINE -ne 0 -a "${CHOICE}" != "${CHOICE#*://}" ]; then
 		# no file on filesystem so try to stream it
 		"$PLAYER" $args "$ONLINEURL/$CHOICE" >> "$LOGF" 2>&1 &
 		MPID=$!
-		SetStoppedAt 0
 		Log "Stream ($MPID): $PLAYER $args \"$ONLINEURL/$CHOICE\""
 	else
 		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is $ONLINE ($ONLINE4K/$ONLINEHDR) ***"
@@ -1133,7 +1166,7 @@ Press return to play'
 	wait $MPID
 	err=$?
 	sleep 3	# Sometimes PID hangs around after death
-	[ $err -gt 128 ] && { Log "Killing: $MPID"; Abort; exit 121; }
+	[ $err -gt 128 ] && { Log "Killing: $MPID"; Abort; exit 121; } || SaveState 0
 done
 
 #################################################################################################################
@@ -1141,7 +1174,12 @@ done
 #	Video descriptions incomplete - could not find a table of them online
 #		(See VideoDescription function below)
 #
+#	Todo
+#	001	GLK	240131	Seasonal weight column to mix by %age
+#
 #	History
+#	022	GLK	240205	Fix RESUME - was never working
+#	021	GLK	240202	Seasonal weight support in STABLE (but not yet implemented)
 #	020	GLK	240131	Move all video IDs to BITES for extension / replacement in settings
 #	019	GLK	240130	Support Dailymotion via dmo: prefix on video IDs
 #	018	GLK	240129	Some formats not playing well on e.g. 8559U processors (AV1) - skip them via FORMATS
