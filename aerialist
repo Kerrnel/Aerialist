@@ -1,13 +1,11 @@
 #!/bin/sh
 #############################################################################
-gDate=240205
-gVers=022
+gDate=240208
+gVers=024
 #############################################################################
-#	Aerialist 1.22
+#	Aerialist 1.24
 #
-#	A rewrite of the Aerial screensaver
-#
-#	Linux video screensaver gone wild - featuring
+#	Video screensaver plugin for xscreensaver
 #
 #		AppleTV online or cached videos
 #		YouTube/Dailymotion etc via yt-dlp/youtube-dl and Seasons
@@ -42,6 +40,7 @@ gVers=022
 #	sound [v]	Set volume to this %age
 #	aerial [p]	Path to find folders of videos (aka Seasons)
 #	movies [p]	Path to videos - (no seasons)
+#	id [p]		Show video names & ids for a given path
 #
 #	(For xscreensaver primarily)
 #	online		Use ATV Videos via web only
@@ -76,7 +75,7 @@ TEXTRGB=AA998877			# Text Color
 # Add your own seasons and times to play - link
 # Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume Weight SeasonName
 STABLE="
-	6	1-1		1-31	17	18	0	0	Example-SilentSundayEveningInJanuary
+	6	1-1		1-31	17	18	0	0	MyVideos	Example - Silent Sunday Evening In January from MyVideos Collection
 $STABLE"
 
 # Add your own video seasons - format Season= id id id id
@@ -145,11 +144,13 @@ Night=		B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo
 
 Places=		Ee0Qh_nIoHw	#	Afrika
 			CHSnz0bCaUk	#	Alaska
+			gq2bvwrERUc	#	Angola
 			YDL8HbY9ENU	#	Argentina
 			bQmzk05I3nw	#	Australia
 			eaLWXfsuxf0	#	Bali
 			Vmx6I1vQFSs	#	Bavaria
 			jpZaVpjWbbI	#	Caribbean
+			Jgegx5BH5xM	#	Chile
 			-TXh2rrNshI	#	China
 			gig9-jO7YL4	#	Earth
 			EBsnEiDTqEQ	#	Egypt
@@ -165,6 +166,7 @@ Places=		Ee0Qh_nIoHw	#	Afrika
 #			aaiLCfShqG0	#	Italy - Rome 2hr
 			E4c21evjzFc	#	Italy - Rome 1hr
 			G5RpJwCJDqc	#	Japan
+			JexgGtA00H8	#	Japan - Nature
 			Cjl70Cqo3Q4	#	Kashmir
 			-s0vUJamgEw	#	Namibia
 			gCRNEJxDJKM	#	Nepal
@@ -208,7 +210,7 @@ Sports=		wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs
 			bg3XO_991VE -mFOj3Vfm1A FQgWc1_cLfk bcwnLnooA5g yaVnhuXRIx4
 			KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU
 			nwpX4zEW1wc tx1-fDueJxg D7v4VAB1NoY J2v2k06Rp-U rC4UVSqi0qc
-			9nuGI9fnOME V55DRE9vJSs 5oBlBwd9HeA zrbpDg1xHSU
+			9nuGI9fnOME V55DRE9vJSs 5oBlBwd9HeA zrbpDg1xHSU MQVxhgdzI2U
 
 Winter=		ZyCudosHxUA 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec UmhbcBClFm8
 
@@ -232,6 +234,9 @@ DIY=		EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M -207fdj7Wuo
 MPID=0				# Player pid
 TESTME=''			# Fake a selection with test XYZ (use 'test' 'VideoPath')
 SEASON='Apple'		# The collection of videos under AERIAL that we will use - chosen from STABLE according to time/date
+CHOICE=''			# The chosen video
+CTITLE=''			# Display name of chosen video
+CIDENT=''			# ID of chosen video
 
 # Markers
 OS_TYPE=$(uname -s)
@@ -279,16 +284,16 @@ Throw()	{	Err "$@"; exit 44;						}
 SeasonMatch()
  {
 	# Process SEASON table (on stdin) and echo first matched Season - or $1 if no match - forked so everything local really
-	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd x Xs
+	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd x Xs pCmt
 
-	M=$(date "+%d %m %w %H %M");	Dbg "Season.: $M"
+	M=$(date "+%d %m %w %H %M");	Dbg "Season.:	$M"
 	d="${M%% *}";	M="${M#* }"
 	m="${M%% *}";	M="${M#* }"
 	w="${M%% *}";	M="${M#* }"
 	H="${M%% *}";	M="${M#* }";	H="${H#0}";	M="${M#0}"
 
 	Xs=0	# To do - calculate weight and return for a re-run?
-	while read pw pdb pde phb phe snd x pS; do if [ -n "$pw" ]; then
+	while read pw pdb pde phb phe snd x pS pCmt; do if [ -n "$pw" ]; then
 		# Old format support - inserted column in 1.2, default it to 0
 		[ -z "$pS" ] && pS="$x" && x=0
 
@@ -325,7 +330,7 @@ SeasonMatch()
 	[ -n "$1" ] && echo "$1" || echo "$pS"	# Default if no match (provided or last one in table)
  }
 
-SourceSet()
+ChooseMovies()	# Set MOVIES & VIDEODB
  {
 	local i
 
@@ -335,6 +340,7 @@ SourceSet()
 
 	# Some alternative locations for MOVIES if it not a directory - or chosen based on Season election
 	if [ ! -d "$MOVIES" ]; then
+		MOVIES=''
 		for i in "${AERIAL}/${SEASON}" "${AERIAL%/*}/$SEASON" ~/"Videos"/Aerial*/"$SEASON" \
 				'/home'/*/"VIDEO"/Aerial*/"$SEASON" ~/"Videos/$SEASON" '/home'/*/"VIDEO/$SEASON" \
 				"/SHARE/VIDEO/COLLECTION/$SEASON" "/SHARE/DRONE/$SEASON"; do
@@ -347,25 +353,23 @@ SourceSet()
 		MOVIES="$AERIAL/$SEASON"
 		Download "$SEASON"
 	elif [ ! -e "$AERIAL" ]; then		# If we have found them elsewhere; convenience link in e.g. ~/Videos
-		Dbg "Linking $MOVIES to $AERIAL"
-		ln -s "${MOVIES%/*}" "$AERIAL"
+		Dbg "Link:	$MOVIES to $AERIAL"
+		ln -s "$MOVIES" "$AERIAL"
 	fi
 
 	# Continue unfinished downloads until folder count matches
 	# CacheOne "$MOVIES" "$SEASON"
-
 	# End with / for find
-	[ "$MOVIES" = "${MOVIES%/}" ] && MOVIES="${MOVIES}/"
+	MOVIES="${MOVIES%/}"
+	Dbg "Movies:	$MOVIES"
 
 	# database files to allow for no repeats when playing videos
 	# Subtitle to show occasional text
 	VIDEODB="$XDG_CONFIG_HOME/aerialist-${SEASON}"
 	SUBTITLE="$XDG_CONFIG_HOME/aerialist-${SEASON}.srt"
-
-	Dbg "Movies:	$MOVIES"
  }
 
-SeasonSet()
+ChooseSeason()	# Set SEASON
  {
 	local	s skip
 
@@ -382,7 +386,7 @@ SeasonSet()
 	fi
 
 	Dbg "Season:	$s"
-	SourceSet "$s"
+	ChooseMovies "$s"
  }
 
 VideoSite()
@@ -405,6 +409,58 @@ VideoBites()
 	fi; done
  }
 
+FileSize()
+ {
+	case "$OS_TYPE" in
+	  'Linux')	stat -Lc %s "$1"		;;
+	  *)		stat -Lf %z "$1"		;;
+	esac
+ }
+
+VideoID()
+ {
+	local	f i s d
+	# Given path with a name like Desc-Name-ID.ext or Desc-Name [ID].ext or Desc-Name.ext
+	# Return ID in OUT, Desc in OU2, Name in OU3 (ID = size if none in name, ID may have - if gt 11 chars)
+	f="${1##*/}"	# Drop path
+	f="${f%.*}"
+	i="${f%]*}"
+	if [ "$f" = "$i" ]; then	# No bracketed ID
+		i="${f#*-}"
+		if [ "$i" != "$f" -a ${#i} -gt 4 ]; then
+			while [ ${#i} -gt 11 -a "$i" != "${i#*-}" ]; do
+				i="${i#*-}"	# ID might have '-' in it anywhere
+			done
+			f="${f%-$i}"
+		else
+			i=+$(FileSize "$1")
+		fi
+		AppleDesc "$f" && d="$OUT"
+	else
+		i="${i##*[}"
+		f="${f%[*}"
+		f="${f% }"
+	fi
+	[ "$f" != "${f#*-}" ] && s="${f%-*}" && [ ${#s} -gt 3 ] && d="$s" && f="${f#$d-}"
+	[ -z "$d" ] && d="$f" && f=''
+	OUT="$i"
+	OU2="$d"
+	OU3="$f"
+ }
+
+VideoIDs()
+ {
+	local	f
+	TEST=1
+	Msg "Scanning: $1"
+	echo '_'
+	echo 'ID		Desc			Name		Original'
+	for f in "${1}"/*; do
+		VideoID "$f"
+		echo "[$OUT]	[$OU2]	[$OU3]		${f##*/}"
+	done
+ }
+
 Download()
  {
 	# $1 is Season to download
@@ -416,23 +472,23 @@ Download()
 	# Download a Season's content from YouTube
 	cnt=0
 	if [ "$1" = 'Apple' ]; then
-		Msg "Apple season (CACHE: $CACHE)"
+		Msg "Apple season (Cache: $CACHE)"
 		if [ $CACHE -ne 0 ]; then
 			mkdir -p "$MOVIES"
-			cd "$MOVIES"
-			AppleVideo
+			AppleTVDB
 			if [ "$2" = 'count' ]; then
-				while read line; do cnt=$((1 + $cnt)); done < "$OUT"
+				cnt=$((0 + $(wc -l < "$OUT")))
 				OUT=$cnt
 				return 0
 			else
 				while read line; do if [ -n "$line" ]; then
-					ApplePie "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
+					AppleURL "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
 					Dbg "AppleTV:	$st ($url)"
-					for i in *"${n}"; do [ -s "$i" ] && n=''; done
+					for i in "$MOVIES/"*"${n}"; do [ -s "$i" ] && n=''; done
 					if [ -n "$n" ]; then
 						if [ "$2" = 'cache' ]; then
-							Log "Caching:	$url to $MOVIES"
+							Log "Caching:	$url to $MOVIES as $st-$n"
+							[ $TEST -ne 0 ] && printf "<Enter> to download (q to quit)" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
 							curl -o "${st}-${n}" "$url" &
 							return 2
 						else
@@ -477,13 +533,14 @@ Download()
 					if [ -n "$v" ]; then
 						VideoSite "$src"; site="$OUT"
 						if [ "$2" = 'cache' ]; then
-							Log "Caching $src:	$v in $MOVIES"
+							Log "Caching:	$src ($v in $MOVIES)"
+							[ $TEST -ne 0 ] && printf "<Enter> to download (q to quit)" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
 							"$YTDL" "${ONLINETPT}://${site}${v}" &
 							return 2
 						else
-							Log "Downloading $src:	$v in $MOVIES"
+							Log "Fetch:	$src ($v in $MOVIES)"
 							"$YTDL" "${ONLINETPT}://${site}${v}"
-							Log "Downloaded $src:	$v"
+							Log "Done:	$src ($v)"
 							[ "$2" = 'one' ] && return 1
 						fi
 					else
@@ -511,6 +568,7 @@ IsInstalled()
 
 Install()
  {
+	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd x Xs pCmt
 	local	o a c line
 
 	o=~/'.xscreensaver.pre-aerialist'
@@ -535,7 +593,7 @@ INSTALL
 	Aerialist:	$a
 	Command:	$c
 
-Press return to install ${0##*/} into .xscreensaver, Ctrl-C to quit
+Press <Enter> to install ${0##*/} into .xscreensaver, Ctrl-C to quit
 
 Type any parameters to add when started separated with a space:
 
@@ -593,19 +651,24 @@ Videos will be downloaded/streamed as needed.
 
 (Streaming only works with ATV videos, not YouTube.)
 
-Press enter to download videos now (many gigabytes)
+Press <Enter> to download videos now (many gigabytes)
 or ctrl-C to stop here.
 '
-	printf "Enter to continue: "; read line
+	printf "command: "; read line
 	TEST=1	# Show messages to screen
 
 	[ $ONLINE -gt 1 ] && ONLINE=1	# Otherwise no downloading
-	echo "$STABLE" | while read pw pdb pde phb phe snd pri pS; do if [ -n "$pS" ]; then
-		Dbg "> __________ > $pS < __________ <"
-		SeasonSet "$pS"
-		Dbg "Video Path:	$MOVIES"
-		Download "$pS"
-	fi; done
+	echo "$STABLE" | while read pw pdb pde phb phe snd x pS pCmt; do
+		# Old format support - inserted column in 1.2, default it to 0
+		[ -z "$pS" ] && pS="$x" && x=0
+
+		if [ -n "$pS" ]; then
+			Dbg "> __________ > $pS < __________ <"
+			ChooseSeason "$pS"
+			Dbg "Video Path:	$MOVIES"
+			Download "$pS"
+		fi
+	done
 
 	exit 22
  }
@@ -623,13 +686,13 @@ RandomLine()
  {
 	# Pick and remove a random line from a file
 	local	pick
-	Random $(wc -l "$1")
+	Random $((0 + $(wc -l < "$1")))
 	pick=$((1 + $OUT))
 	OUT=$(sed "${pick}q;d" "$1")	# Get the line
 #	cp "$1" "${1}.last"
 	case "$OS_TYPE" in
-	  'FreeBSD')	sed -i '' "${pick}d" "$1"	;;
-	  *)			sed -i "${pick}d" "$1"		;;	# Remove the line
+	  'Darwin'|'FreeBSD')	sed -i '' "${pick}d" "$1"	;;
+	  *)					sed -i "${pick}d" "$1"		;;	# Remove the line
 	esac
  }
 
@@ -655,10 +718,10 @@ ApplePit()
 	[ -n "$l" -a -n "$k2s" ] && echo "$t:$l:$k2s:$k2h:$k4s:$k4h"
  }
 
-ApplePie()
+AppleURL()
  {
 	local	tod st k2s k2h k4s k4h c
-	# Return (in OUT) the appropriate slice of pie for a line of AppleURL
+	# Return (in OUT) the appropriate slice of pie for a line of AppleURL and choice of HDR, 2K/4K
 	c="$1"
 	tod="${c%%:*}";	c="${c#*:}"	#	day/night/unk
 	st="${c%%:*}";	c="${c#*:}"	#	Apple Description
@@ -673,7 +736,7 @@ ApplePie()
 	  '11') [ -n "$k4h" ] && c="$k4h"	;;
 	esac
 	OUT="${ONLINETPT}:${c}";	OU2="$st"
-#	Dbg "ApplePie: $OUT ($1)"
+#	Dbg "AppleURL: $OUT ($1)"
  }
 
 AppleVideoJson()
@@ -712,7 +775,7 @@ AppleVideoTar()
 	done
  }
 
-AppleVideo()
+AppleTVDB()
  {
 	# Download if needed to DB, make a copy to $1 if provided
 	local	avu="$XDG_CONFIG_HOME/aerialist-AppleURL"
@@ -725,11 +788,33 @@ AppleVideo()
 	OUT="$avu"
  }
 
+AppleDesc()
+ {
+	# Download if needed to DB, make a copy to $1 if provided
+	local	avu t n
+
+	AppleTVDB
+	avu="$OUT"
+
+	n="${1%_HEVC*}"
+	n="${n%_2K*}"; n="${n%_4K*}"; n="${n%_HDR*}";n="${n%_SDR*}"
+	OUT=''
+	t=$(sed -n -e "s|/${n}.*||p" "$avu" | head -n 1)
+	if [ -n "$t" ]; then
+		t="${t#*:}"
+		t="${t%%:*}"
+		OUT="$t"
+		return 0
+	fi
+	return 1
+ }
+
 FormatIsOK()
  {
 	local	i f
 
-	if [ -n "$FORMATS" ]; then
+	# Can't test URL
+	if [ -n "$FORMATS" -a "$CHOICE" = "${CHOICE#*:}" ]; then
 		if which 'mediainfo' >/dev/null 2>&1; then
 			f=$(mediainfo --Inform="Video;%Format%" "$CHOICE")
 			if [ -n "$f" ]; then
@@ -752,32 +837,35 @@ FormatIsOK()
 
 ProposeVideo()
  {
-	# Select a video according to SEASON - but may be wrong format
-	local	n i hour w
+	# Select a video according to SEASON - but may be wrong format - return file/url in $CHOICE
+	local	n i hour w f
 
-	SeasonSet	# Select right set of videos
+	ChooseSeason "$@"	# Select right set of videos
 
 	Dbg "Movie DB:	$VIDEODB"
 
-	# If db is empty, find all the '*.mov' videos in $MOVIES for night or day and stash in VIDEODB or NIGHT_DB
-	# Select and delete one line from VIDEODB or NIGHT_DB, store in $CHOICE
+	# If Empty DB - then find videos in MOVIES or Reset Apple list to AppleTV DB
 	if [ ! -s "$VIDEODB" ]; then
-		if [ -d "$MOVIES" -a "$SEASON" != 'Apple' ]; then
+		if [ "$SEASON" = 'Apple' ]; then
+			AppleTVDB "$VIDEODB"
+		elif [ -d "$MOVIES" ]; then
 			Dbg "Find:	find \"$MOVIES\" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o  -iname '*.webm'"
 			find "$MOVIES" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o -iname '*.webm' > "$VIDEODB"
-			n=$(wc -l "$VIDEODB"); n="${n%% *}"
-			Dbg "Found:	$n videos"
-			# Start a background caching process if videos are less than expected
-			Download "$SEASON" 'count'; w=$OUT
-			[ $n -lt $w ] && Dbg "Want: $n videos" && Download "$SEASON" 'cache'
-		else
-			n=0
 		fi
-		if [ $n -le 0 ]; then
-			[ $ONLINE -eq 0 ] && Throw "No videos in $MOVIES"
-			SeasonSet 'Apple'
-			AppleVideo "$VIDEODB"
-			n=$(wc -l "$VIDEODB"); n="${n%% *}"
+
+		n=$((0 + $(wc -l < "$VIDEODB")))
+		Dbg "Found:	$n videos"
+
+		# Start a background caching process if videos are less than expected (Download will check if CACHING enabled)
+		Download "$SEASON" 'count'; w=$OUT
+		Dbg "Want:	$w videos"
+		[ $n -lt $w ] && Download "$SEASON" 'cache'
+	
+		# No videos available - presume one is downloading and fall back to ATV
+		if [ $n -le 0 -a "$1" != 'Apple' ]; then
+			Dbg "Fall back to ATV"
+			ProposeVideo 'Apple'
+			return
 		fi
 	fi
 
@@ -786,15 +874,34 @@ ProposeVideo()
 	[ -n "$TESTME" ] && Msg "Test override: $TESTME" && OUT="$TESTME" && TESTME=''
 	CHOICE="$OUT"
 	[ -z "$CHOICE" ] && Throw "No choice in $VIDEODB"
+
+	if [ "$SEASON" = 'Apple' ]; then				# Offline (vs AppleTV)?
+		AppleURL "$CHOICE";	CHOICE="$OUT"; CTITLE="$OU2"
+		# Have we cached it?
+		if [ "$CACHE" -ne 0 ]; then
+			for f in "$MOVIES"*"$CHOICE"*; do
+				[ ! -e "$f" ] && f=''
+			done
+			[ -n "$f" -a -s "$f" ] && CHOICE="$f" && Dbg "Cached:	$f"
+			[ $TEST -ne 0 -a -z "$f" ] && Msg "Cache ON, press <Enter> to stream $CHOICE (q to quit)" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
+		fi
+	fi
  }
 
 ChooseVideo()
  {
-	local	i=0
+	local	f i
 
+	i=0
 	while [ $i -lt 11 ]; do
 		ProposeVideo
-		FormatIsOK && return 0 || Log "Ignoring format: $OUT from $CHOICE"
+		if FormatIsOK; then
+			VideoID "$CHOICE"
+			CIDENT="$OUT"
+			VideoDescription "$OU2"; CTITLE="$OUT"					# Allow for overriding file name / Apple description
+			return 0
+		fi
+		Log "Ignoring format: $OUT from $CHOICE"
 		i=$((1 + $i))
 	done
  }
@@ -806,8 +913,6 @@ VideoDescription()
 	#	show string after ':' instead of file name
 	local	line k v name
 	local	vd='
-Greg_Kerr:? Means a guess - have not verified
-
 b2-2:Kamehameha Childhood Hideout?
 b2-4:San Francisco Dawn
 b4-3:Golden Gate Bridge from San Francisco
@@ -818,7 +923,7 @@ CH_C007_C011:China West of Xi`an?
 DB_D001_C005:Dubai Harbor?
 LA_A006_C008:LAX
 MEX_A006_C008:Republicans meeting in Mexico?
-PA_A010_C007:Democarats meeting in PA?
+PA_A010_C007:Democrats meeting in PA?
 TH_804_A001:Thailand (aka Paradise) Undersea?
 
 1223LV_FL:Maybe Chicago?
@@ -854,11 +959,11 @@ Subtitles()
 
 	f="+%H:%M, %A, %d. %B"
 	case "$OS_TYPE" in
-	  'FreeBSD')	c='-v+'	;;	# FreeBSD Date increment
-	  *)			c='-d@'	;;	# NetBSD/Linux Date format at seconds
+	  'FreeBSD'|'Darwin')	c='-v+'	;;	# FreeBSD Date increment
+	  *)					c='-d@'	;;	# NetBSD/Linux Date format at seconds
 	esac
 	t=0; n=1
-	s=$(date +%s)
+	s=$(date '+%s')
 	while [ $n -lt $SUBREPEATS ]; do	# 33 * SUBINTERVAL minutes worth of messages
 		u="${t}"
 		[ ${#u} -eq 1 ] && u="0$u"
@@ -1019,19 +1124,16 @@ PlayerArgs()
 lockf="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#*:}.lock"
 if [ -e "$lockf" ]; then
 	pid=$(head -n 1 "$lockf")	# aerialist
-	case "$OS_TYPE" in
-	  'Linux')	f='-h -q'	;;
-	  *)		f='-p'		;;
-	esac
-	ps $f "$pid" >/dev/null 2>&1 && echo "Aerialist locked by $pid in $lockf" && exit 33
+	IsUp "$pid" && Log "Aerialist locked by $pid in $lockf" && exit 33
 	pid=$(tail -n 1 "$lockf")	# $PLAYER
-	ps $f "$pid" >/dev/null 2>&1 && kill -9 "$pid"
+	IsUp && Dbg "Ninja: $pid" && kill -9 "$pid"
 fi
 echo $$ > "$lockf"
 
 # Poor mans getopts - Install into xscreensaver and exit, test mode (just output what would happen)
 while [ -n "$1" ]; do a=0; case "$1" in
   'install')	Install						;;	# Install into Xscreensaver / Download MOVIES
+  'id'*)		VideoIDs "$2"; exit 0		;;	# Test Video IDs
   'online')		ONLINE=2					;;	# Use AppleTV videos
   'offline')	ONLINE=0					;;	# ... or do NOT
   'sound')		SOUND=25					;;	# Audio
@@ -1044,7 +1146,7 @@ while [ -n "$1" ]; do a=0; case "$1" in
   'seas'*)		VideoBites; exit 0			;;	# Show seasons
   'vid'*)		VideoBites "$2"; exit 0		;;	# Show videos
   'cron'*)		echo "$STABLE"; TEST=1
-				SeasonSet; exit 0			;;	# Show Time Table and current choice
+				ChooseSeason; exit 0		;;	# Show Time Table and current choice
   'set'*)
 	for i in 'joe' 'pico' 'nano' 'vi' 'emacs'; do
 		[ -z "$EDITOR" ] && which "$i" > /dev/null 2>&1 && EDITOR="$i"
@@ -1105,47 +1207,21 @@ trap Abort TERM INT HUP
 # Until we are killed...
 while [ 9 -eq 9 ]; do
 	ChooseVideo
-
-	if [ "$SEASON" != 'Apple' ]; then				# Offline (vs AppleTV)?
-		Dbg "No pie: $SEASON"
-		st="${CHOICE##*/}";	st="${st%%.*}";	st="${st%%-*}"	# Default title - drop extension, youtube ID
-	else
-		ApplePie "$CHOICE";	CHOICE="$OUT"; st="$OU2"
-
-		if [ "$CACHE" -ne 0 ]; then
-			f="${st}-${CHOICE##*/}"
-			if [ ! -s "${MOVIES}$f" ]; then
-				# Changed or no name in front of -
-				for i in "${MOVIES}"*"$CHOICE"; do [ -s "$i" ] && f="$i"; done
-				[ $TEST -ne 0 -a ! -s "$MOVIES$f" ] && Msg "Cache ON, press return to download to $f in background" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
-			fi
-			for i in "${MOVIES}"/*"${CHOICE##*/}"; do [ -s "$i" ] && CHOICE=''; done
-			if [ -z "$CHOICE" ]; then
-				CHOICE="${MOVIES}$f"
-				Dbg "Using Cache: $f"
-			else
-				Log "Background DL: $CHOICE to $MOVIES$f"e
-				Download 'Apple' 'cache'
-			fi
-		fi
-	fi
-
-	# Create SUBTITLE blurp at 0,5,10,15 minutes
-	VideoDescription "$st"; st="$OUT"					# Allow for overriding file name / Apple description
-	Subtitles "$st" > "$SUBTITLE"
+	Subtitles "$CTITLE" > "$SUBTITLE"		# Create SUBTITLE blurp at 0,5,10,15 minutes
 	PlayerArgs "$SUBTITLE"; args="$OUT"
 
 	STARTAT=$(date +%s)
 
 	if [ $TEST -ne 0 ]; then
 		head -n 5 "$SUBTITLE"
-		echo "Choice:	$CHOICE"
+		Msg "Choice:	$CHOICE"
 		[ "$CHOICE" = "${CHOICE#*:}" ] && ls -lh "$CHOICE"
-		echo '
-Press return to play'
-		echo "Test mode: $PLAYER $args \"$CHOICE\""
-		echo 'Press q during playback to exit'
-		read line
+		Msg '
+	Press <Enter> to play
+	Type q and <Enter> or press q during playback to exit
+'
+		Msg "Test mode: $PLAYER $args \"$CHOICE\""
+		printf '\nCommand: '; read line
 		[ "$line" != 'q' ] && "$PLAYER" $args "$CHOICE"
 		exit 1
 	elif [ -s "$CHOICE" ]; then
@@ -1178,6 +1254,8 @@ done
 #	001	GLK	240131	Seasonal weight column to mix by %age
 #
 #	History
+#	024	GLK	240208	Redid core caching / ATV choosing, fix some Darwinisms
+#	023	GLK	240206	Broke Apple streaming ... will test, Comment in final field of STABLE
 #	022	GLK	240205	Fix RESUME - was never working
 #	021	GLK	240202	Seasonal weight support in STABLE (but not yet implemented)
 #	020	GLK	240131	Move all video IDs to BITES for extension / replacement in settings
