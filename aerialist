@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240208
-gVers=024
+gDate=240210
+gVers=025
 #############################################################################
-#	Aerialist 1.24
+#	Aerialist 1.25
 #
 #	Video screensaver plugin for xscreensaver
 #
@@ -59,7 +59,7 @@ gVers=024
 ONLINE=1					# Allow network video play - set to 2 to FORCE online ONLY
 ONLINE4K=0					# Online 4K option (vs 2K if available)
 ONLINEHDR=0					# Online HDR option (vs SDR if available)
-CACHE=1						# Download Online videos to AERIAL folder (Apple, YouTube sources)
+CACHE=2						# 1 = Look in Cache (AERIAL), 2 = Download videos while playing)
 TEST=0						# Just show the video that would play
 AERIAL=~/Videos/Aerialist	# Master Path of MOVIES folders (required if ONLINE == 0)
 RESUME=1					# Resume video playback from last position when interrupted
@@ -237,6 +237,7 @@ SEASON='Apple'		# The collection of videos under AERIAL that we will use - chose
 CHOICE=''			# The chosen video
 CTITLE=''			# Display name of chosen video
 CIDENT=''			# ID of chosen video
+LOCKF=''			# Lock file
 
 # Markers
 OS_TYPE=$(uname -s)
@@ -275,11 +276,23 @@ for i in 'yt-dlp' 'youtube-dl'; do
 done
 
 
-Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;		}
+Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;			}
 Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF";	}
-Dbg()	{	[ $TEST -ne 0 ] && Msg "+++ [$@] +++";	}
-Err()	{	Msg "*** [$@] ***";						}
-Throw()	{	Err "$@"; exit 44;						}
+Dbg()	{	[ $TEST -ne 0 ] && Msg "+++ [$@] +++";		}
+Err()	{	Msg "*** [$@] ***";							}
+Throw()	{	Err "$1"; [ -n "$2" ] && exit $2; exit 44;	}
+
+Prompt()
+ {
+	OUT=''
+	if [ $TEST -ne 0 ]; then
+		Msg "$@"
+		printf '\n	<Enter> to continue (q to quit): '; 	read OUT
+		[ "$OUT" = 'q' ] && Throw 'Manual abort'	42
+	else
+		Log "$@"
+	fi
+ }
 
 SeasonMatch()
  {
@@ -351,7 +364,7 @@ ChooseMovies()	# Set MOVIES & VIDEODB
 	# No folder found?
 	if [ -z "$MOVIES" ]; then
 		MOVIES="$AERIAL/$SEASON"
-		Download "$SEASON"
+		Download "$SEASON" 'cache'
 	elif [ ! -e "$AERIAL" ]; then		# If we have found them elsewhere; convenience link in e.g. ~/Videos
 		Dbg "Link:	$MOVIES to $AERIAL"
 		ln -s "$MOVIES" "$AERIAL"
@@ -432,7 +445,7 @@ VideoID()
 				i="${i#*-}"	# ID might have '-' in it anywhere
 			done
 			f="${f%-$i}"
-		else
+		elif [ -s "$1" ]; then
 			i=+$(FileSize "$1")
 		fi
 		AppleDesc "$f" && d="$OUT"
@@ -443,6 +456,7 @@ VideoID()
 	fi
 	[ "$f" != "${f#*-}" ] && s="${f%-*}" && [ ${#s} -gt 3 ] && d="$s" && f="${f#$d-}"
 	[ -z "$d" ] && d="$f" && f=''
+	[ -z "$i" ] && i="$d"	# Use description if no ID in name
 	OUT="$i"
 	OU2="$d"
 	OU3="$f"
@@ -469,26 +483,26 @@ Download()
 	#	if 'count' - just return number of videos for this season (to compare e.g. to folder count) in $OUT
 	local line st url n i f v cnt
 
-	# Download a Season's content from YouTube
+	# Download a Season's content
+	# Prompt "Download entry ($CACHE): $@"
 	cnt=0
 	if [ "$1" = 'Apple' ]; then
 		Msg "Apple season (Cache: $CACHE)"
-		if [ $CACHE -ne 0 ]; then
-			mkdir -p "$MOVIES"
+		if [ $CACHE -gt 0 ]; then
 			AppleTVDB
 			if [ "$2" = 'count' ]; then
-				cnt=$((0 + $(wc -l < "$OUT")))
+				[ -s "$OUT" ] && cnt=$((0 + $(wc -l < "$OUT")))
 				OUT=$cnt
 				return 0
-			else
+			elif [ $CACHE -gt 1 ]; then
+				mkdir -p "$MOVIES"
 				while read line; do if [ -n "$line" ]; then
 					AppleURL "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
 					Dbg "AppleTV:	$st ($url)"
 					for i in "$MOVIES/"*"${n}"; do [ -s "$i" ] && n=''; done
 					if [ -n "$n" ]; then
 						if [ "$2" = 'cache' ]; then
-							Log "Caching:	$url to $MOVIES as $st-$n"
-							[ $TEST -ne 0 ] && printf "<Enter> to download (q to quit)" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
+							Prompt "Continue to cache $url as $st-$n in the background"
 							curl -o "${st}-${n}" "$url" &
 							return 2
 						else
@@ -504,20 +518,26 @@ Download()
 			fi
 		fi
 		return 0
-	elif [ -n "$YTDL" -a $CACHE -ne 0 ]; then
+	elif [ -n "$YTDL" -a $CACHE -gt 0 ]; then
 		local	vIds v f src
 
 		vIds=$(VideoBites "$1")
 		[ -z "$vIds" ] && Err "No predefined videos for Season: $1" && return 1
 
-		mkdir -p "$MOVIES"
-		if [ -d "$MOVIES" ]; then
-			cd "$MOVIES"
-			# yt-dlp names title [id].xyz - youtube-dl names title-id.xyz (where id can contain a '-')
+		if [ "$2" = 'count' ]; then
 			for v in $vIds; do
-				if [ "$2" = 'count' ]; then
-					cnt=$((1 + $cnt))
-				else
+				cnt=$((1 + $cnt))
+			done
+			OUT="$cnt"
+			return
+		fi
+
+		if [ $CACHE -gt 1 ]; then
+			mkdir -p "$MOVIES"
+			if [ -d "$MOVIES" ]; then
+				cd "$MOVIES"
+				# yt-dlp names title [id].xyz - youtube-dl names title-id.xyz (where id can contain a '-')
+				for v in $vIds; do
 					src="${v%%:*}"
 					v="${v#$src:}"
 					[ -z "$src" ] && src='YT'
@@ -533,8 +553,7 @@ Download()
 					if [ -n "$v" ]; then
 						VideoSite "$src"; site="$OUT"
 						if [ "$2" = 'cache' ]; then
-							Log "Caching:	$src ($v in $MOVIES)"
-							[ $TEST -ne 0 ] && printf "<Enter> to download (q to quit)" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
+							Prompt "Caching:	$src ($v in $MOVIES)"
 							"$YTDL" "${ONLINETPT}://${site}${v}" &
 							return 2
 						else
@@ -546,13 +565,13 @@ Download()
 					else
 						Log "Already have:	$f in $1"
 					fi
-				fi
-			done
-		else
-			Err "$MOVIES could not be created to stash videos"
+				done
+			else
+				Err "$MOVIES could not be created to stash videos"
+			fi
 		fi
 	else
-		Err "No youtube-dl + CACHE settign to populate $MOVIES for $1"
+		Err "No yt-dlp + CACHE setting active to populate $MOVIES for $1"
 	fi
 	[ "$2" = 'count' ] && OUT=$cnt
  }
@@ -610,7 +629,7 @@ Type any parameters to add when started separated with a space:
 
 		printf "Parameters: "; read line
 		cp -f "$a" "$o"
-		echo "Installing [$c] as a screensaver..."
+		Msg "Installing [$c] as a screensaver..."
 		if [ -s "$o" ]; then
 			awk -v "PRG=$c $line" 'BEGIN { I=0 }
 				{
@@ -636,8 +655,8 @@ Type any parameters to add when started separated with a space:
 	fi
 
 	# Download videos?
-	[ $CACHE -eq 0 ] && echo "CACHE is set to 0 - so no videos will be downloaded,
-	only played via the AppleTV service." && exit 21
+	[ $CACHE -lt 1 ] && Msg "CACHE is 0 - so no cached videos will be used, only played via the AppleTV service."
+	[ $CACHE -lt 2 ] && Msg "CACHE is less than 2 - so no videos will be downloaded." && exit 21
 
 	echo "
 Needed Programs (Set up XScreenSaver in its GUI)
@@ -646,17 +665,15 @@ Curl:		$(which curl 2>&1)
 Player:	$(which $PLAYER 2>&1)
 XScreenSaver:	$(which xscreensaver 2>&1)
 Video Root:	$AERIAL"
-	echo '
-Videos will be downloaded/streamed as needed.
+
+	TEST=1	# Show messages to screen
+	Prompt '
+Continue to cache all videos >1TB now.
+
+Otherwise videos will be downloaded/streamed as needed if you stop now.
 
 (Streaming only works with ATV videos, not YouTube.)
-
-Press <Enter> to download videos now (many gigabytes)
-or ctrl-C to stop here.
 '
-	printf "command: "; read line
-	TEST=1	# Show messages to screen
-
 	[ $ONLINE -gt 1 ] && ONLINE=1	# Otherwise no downloading
 	echo "$STABLE" | while read pw pdb pde phb phe snd x pS pCmt; do
 		# Old format support - inserted column in 1.2, default it to 0
@@ -793,8 +810,7 @@ AppleDesc()
 	# Download if needed to DB, make a copy to $1 if provided
 	local	avu t n
 
-	AppleTVDB
-	avu="$OUT"
+	AppleTVDB; avu="$OUT"
 
 	n="${1%_HEVC*}"
 	n="${n%_2K*}"; n="${n%_4K*}"; n="${n%_HDR*}";n="${n%_SDR*}"
@@ -816,6 +832,7 @@ FormatIsOK()
 	# Can't test URL
 	if [ -n "$FORMATS" -a "$CHOICE" = "${CHOICE#*:}" ]; then
 		if which 'mediainfo' >/dev/null 2>&1; then
+			# --Inform="Video;%Format%:%Duration%" ... but not a solution for URLs
 			f=$(mediainfo --Inform="Video;%Format%" "$CHOICE")
 			if [ -n "$f" ]; then
 				Dbg "Format: $f"
@@ -848,12 +865,12 @@ ProposeVideo()
 	if [ ! -s "$VIDEODB" ]; then
 		if [ "$SEASON" = 'Apple' ]; then
 			AppleTVDB "$VIDEODB"
-		elif [ -d "$MOVIES" ]; then
+		elif [ -d "$MOVIES" -a $CACHE -ne 0 ]; then
 			Dbg "Find:	find \"$MOVIES\" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o  -iname '*.webm'"
 			find "$MOVIES" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o -iname '*.webm' > "$VIDEODB"
 		fi
 
-		n=$((0 + $(wc -l < "$VIDEODB")))
+		[ -s "$VIDEODB" ] && n=$((0 + $(wc -l < "$VIDEODB"))) || n=0
 		Dbg "Found:	$n videos"
 
 		# Start a background caching process if videos are less than expected (Download will check if CACHING enabled)
@@ -875,16 +892,25 @@ ProposeVideo()
 	CHOICE="$OUT"
 	[ -z "$CHOICE" ] && Throw "No choice in $VIDEODB"
 
+	# Find cached/renamed items
 	if [ "$SEASON" = 'Apple' ]; then				# Offline (vs AppleTV)?
 		AppleURL "$CHOICE";	CHOICE="$OUT"; CTITLE="$OU2"
 		# Have we cached it?
 		if [ "$CACHE" -ne 0 ]; then
-			for f in "$MOVIES"*"$CHOICE"*; do
-				[ ! -e "$f" ] && f=''
+			for f in "$MOVIES"/*"$CHOICE"*; do
+				[ ! -s "$f" ] && f=''
 			done
 			[ -n "$f" -a -s "$f" ] && CHOICE="$f" && Dbg "Cached:	$f"
-			[ $TEST -ne 0 -a -z "$f" ] && Msg "Cache ON, press <Enter> to stream $CHOICE (q to quit)" && read line && [ "$line" = 'q' ] && Throw 'Manual abort'
+			[ -z "$f" ] && Prompt "Caching is ON but $CHOICE is not cached, continue to stream"
 		fi
+	elif [ ! -s "$CHOICE" ]; then
+		Log "Gone:	$CHOICE"
+		VideoID "$CHOICE"
+		CIDENT="$OUT"
+		for f in "$MOVIES"/*"$CIDENT"*; do
+			[ ! -s "$f" ] && f=''
+		done
+		[ -s "$f" ] && CHOICE="$f" && Log "Subst:	$f ($CIDENT)"
 	fi
  }
 
@@ -983,14 +1009,13 @@ $1
 
 GetState()
  {
-	local line f
+	local line
 
-	f="${CHOICE##*/}"
 	OUT=''
 	if [ $RESUME -ne 0 ]; then
 		if [ -s "$STATEDB" ]; then
 			while read line; do
-				[ "${line##*:}" = "$f" ] && OUT="${line%%:*}" # && Log "State for $f is $OUT"
+				[ "${line##*:}" = "$CIDENT" ] && OUT="${line%%:*}" # && Log "State for $CIDENT is $OUT"
 			done < "$STATEDB"
 		fi
 		return 0
@@ -1001,6 +1026,8 @@ GetState()
 SaveState()
  {
 	local	t s line
+
+	OUT=0
 	if [ $RESUME -ne 0 ]; then
 		GetState; [ -z "$OUT" ] && OUT=0
 		if [ "$1" = '0' ]; then
@@ -1008,12 +1035,14 @@ SaveState()
 			[ $OUT -eq 0 ] && return 0
 		else
 			s=$(( $(date +%s) - $STARTAT ))	# How many seconds have played
-			t=$(($OUT + $s))	# Played before + played now
+			[ $s -lt 3 ] && s=$((0 - $OUT))	# Reset position if played quickly (end not detected)
+			t=$(($OUT + $s - 2))	# Played before + played now + me
+			[ $t -lt 0 ] && t=0
 		fi
-		echo "$t:${CHOICE##*/}" > "${STATEDB}.new"
+		[ $t -gt 0 ] && echo "$t:$CIDENT" > "${STATEDB}.new"
 		if [ -s "$STATEDB" ]; then
 			while read line; do
-				[ "${line##*:}" != "${CHOICE##*/}" ] && echo "$line" >> "${STATEDB}.new"
+				[ "${line##*:}" != "$CIDENT" ] && echo "$line" >> "${STATEDB}.new"
 			done < "$STATEDB"
 			cp "${STATEDB}" "${STATEDB}.old"
 		fi
@@ -1033,23 +1062,24 @@ IsUp()
 	ps $f "$1" > /dev/null 2>&1
  }
 
-Abort()
+Stop()
  {
 	local	mpid f
 	if [ $MPID -ne 0 ]; then
 		mpid="$MPID"
 		MPID=0
-		Log "Abort: $mpid"
-		IsUp $mpid && kill $mpid
-		mv -f "$lockf" "${lockf}.old"
+		if [ $mpid -gt 0 ]; then
+			Log "Stop: $mpid"
+			IsUp $mpid && kill $mpid
+		fi
+		mv -f "$LOCKF" "${LOCKF}.old"
 		SaveState
 		[ $RESUME -ne 0 ] && Log "Stopped at: $OUT"
-		sleep 1
-		IsUp $mpid && Log "Ninja: $mpid" && kill -9 $mpid
-		exit 66
+		[ $mpid -gt 0 ] && sleep 3 && IsUp $mpid && Log "Ninja: $mpid" && kill -9 $mpid
+		[ $mpid -ge 0 ] && exit 66
 	else
-		Log "Lost player"
-		cat "$lockf" >> "$LOGF"
+		Log 'Lost player id'
+		cat "$LOCKF" >> "$LOGF"
 	fi
  }
 
@@ -1120,40 +1150,34 @@ PlayerArgs()
 	OUT="${OUT} $PLARGS"
  }
 
-# Lock for this display
-lockf="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#*:}.lock"
-if [ -e "$lockf" ]; then
-	pid=$(head -n 1 "$lockf")	# aerialist
-	IsUp "$pid" && Log "Aerialist locked by $pid in $lockf" && exit 33
-	pid=$(tail -n 1 "$lockf")	# $PLAYER
-	IsUp && Dbg "Ninja: $pid" && kill -9 "$pid"
-fi
-echo $$ > "$lockf"
+Options()
+ {
+	local	i a
 
-# Poor mans getopts - Install into xscreensaver and exit, test mode (just output what would happen)
-while [ -n "$1" ]; do a=0; case "$1" in
-  'install')	Install						;;	# Install into Xscreensaver / Download MOVIES
-  'id'*)		VideoIDs "$2"; exit 0		;;	# Test Video IDs
-  'online')		ONLINE=2					;;	# Use AppleTV videos
-  'offline')	ONLINE=0					;;	# ... or do NOT
-  'sound')		SOUND=25					;;	# Audio
-  'volume')		SOUND="$2"; a=1				;;	
-  'aerial')		AERIAL="$2"; a=1			;;	# MOVIES folders inside here
-  'movies')		MOVIES="$2"; a=1			;;	# Just use this one
-  'hdr')		ONLINEHDR=1					;;	# AppleTV Video quality
-  '4k')			ONLINE4K=1					;;
-  'test')		TEST=1; TESTME="$2"; a=1	;;	# Test one video file
-  'seas'*)		VideoBites; exit 0			;;	# Show seasons
-  'vid'*)		VideoBites "$2"; exit 0		;;	# Show videos
-  'cron'*)		echo "$STABLE"; TEST=1
-				ChooseSeason; exit 0		;;	# Show Time Table and current choice
-  'set'*)
-	for i in 'joe' 'pico' 'nano' 'vi' 'emacs'; do
-		[ -z "$EDITOR" ] && which "$i" > /dev/null 2>&1 && EDITOR="$i"
-	done
-	if [ ! -e "$PREFS" ]; then
-		head -n 1 "$0" > "$PREFS"
-		echo "#
+	# Poor mans getopts - Install into xscreensaver and exit, test mode (just output what would happen)
+	while [ -n "$1" ]; do a=0; case "$1" in
+	  'install')	Install						;;	# Install into Xscreensaver / Download MOVIES
+	  'id'*)		VideoIDs "$2"; exit 0		;;	# Test Video IDs
+	  'online')		ONLINE=2					;;	# Use AppleTV videos
+	  'offline')	ONLINE=0					;;	# ... or do NOT
+	  'sound')		SOUND=25					;;	# Audio
+	  'volume')		SOUND="$2"; a=1				;;	
+	  'aerial')		AERIAL="$2"; a=1			;;	# MOVIES folders inside here
+	  'movies')		MOVIES="$2"; a=1			;;	# Just use this one
+	  'hdr')		ONLINEHDR=1					;;	# AppleTV Video quality
+	  '4k')			ONLINE4K=1					;;
+	  'test')		TEST=1; TESTME="$2"; a=1	;;	# Test one video file
+	  'seas'*)		VideoBites; exit 0			;;	# Show seasons
+	  'vid'*)		VideoBites "$2"; exit 0		;;	# Show videos
+	  'cron'*)		echo "$STABLE"; TEST=1
+					ChooseSeason; exit 0		;;	# Show Time Table and current choice
+	  'set'*)
+		for i in 'joe' 'pico' 'nano' 'vi' 'emacs'; do
+			[ -z "$EDITOR" ] && which "$i" > /dev/null 2>&1 && EDITOR="$i"
+		done
+		if [ ! -e "$PREFS" ]; then
+			head -n 1 "$0" > "$PREFS"
+			echo "#
 #
 #	Aerialist $gVers Preferences
 #
@@ -1161,88 +1185,120 @@ while [ -n "$1" ]; do a=0; case "$1" in
 #
 #	Remove any lines you do not change (if you like)
 #" >> "$PREFS"
-		head -n 90 "$0" | tail -n 40 >> "$PREFS"
+			head -n 90 "$0" | tail -n 40 >> "$PREFS"
+		fi
+		exec "$EDITOR" "$PREFS"; exit 0
+	  ;;
+	esac; shift; [ $a -ne 0 -a -n "$1" ] && shift; done
+
+	# Are we inside xscreensaver?
+	if [ -z "$XSCREENSAVER_WINDOW" ]; then
+		TEST=2
+		# Are we installed?
+		if ! IsInstalled; then
+			Prompt 'Aerialist is not installed, type i to install or just enter to continue test.'
+			[ "$OUT" ] = 'i' && Install
+		fi
 	fi
-	exec "$EDITOR" "$PREFS"; exit 0
-  ;;
-esac; shift; [ $a -ne 0 -a -n "$1" ] && shift; done
 
-# Are we inside xscreensaver?
-if [ -z "$XSCREENSAVER_WINDOW" ]; then
-	TEST=2
-	# Are we installed?
-	if ! IsInstalled; then
-		echo 'Aerialist is not installed, type i to install or just enter to continue test.'
-		read line
-		[ "$line" ] = 'i' && Install
+	# Show info in test mode
+	if [ $TEST -ne 0 ]; then
+		echo "Aerialist:	$gVers ($gDate)
+
+	Season:		$SEASON
+	Movies:		$AERIAL
+	Prefs:		$PREFS
+	Formats:	$FORMATS
+	Lockfile:	$LOCKF
+	Player:		$PLAYER ($(which $PLAYER 2>/dev/null))
+	Curl:		$(which curl 2>/dev/null)
+	YouTube:	$YTDL
+	MediaInfo:	$(which mediainfo 2>/dev/null)
+	Process:	$$
+	"
 	fi
-fi
 
-# Show info in test mode
-if [ $TEST -ne 0 ]; then
-	echo "Aerialist:	$gVers ($gDate)
+	# Plays the video - local and remote
+	for i in "$PLAYER" 'curl'; do
+		command -v "$i" >/dev/null 2>&1 || Throw "${0##*/} requires $i but it's not installed. Aborting."
+	done
+ }
 
-Season:		$SEASON
-Movies:		$AERIAL
-Prefs:		$PREFS
-Formats:	$FORMATS
-Lockfile:	$lockf
-Player:		$(which $PLAYER)
-Curl:		$(which curl)
-YouTube:	$YTDL
-MediaInfo:	$(which mediainfo)
-Process:	$$
-"
-fi
+Lock()
+ {
+	local	pid
+	# Lock for this display
+	LOCKF="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#*:}.lock"
+	if [ -e "$LOCKF" ]; then
+		pid=$(head -n 1 "$LOCKF")	# aerialist
+		IsUp "$pid" && Log "Aerialist locked by $pid in $LOCKF" && exit 33
+		pid=$(tail -n 1 "$LOCKF")	# $PLAYER
+		IsUp && Dbg "Ninja: $pid" && kill -9 "$pid"
+	fi
+	echo $$ > "$LOCKF"
+ }
 
-# Plays the video - local and remote
-for i in "$PLAYER" 'curl'; do
-	command -v "$i" >/dev/null 2>&1 || Throw "${0##*/} requires $i but it's not installed. Aborting."
-done
-
-############# Play loop - catch interupts ##############
-#
-trap Abort TERM INT HUP
-
-# Until we are killed...
-while [ 9 -eq 9 ]; do
-	ChooseVideo
-	Subtitles "$CTITLE" > "$SUBTITLE"		# Create SUBTITLE blurp at 0,5,10,15 minutes
+Play()
+ {
+	# Prep
+	Subtitles "$CTITLE" > "$SUBTITLE"		# Create SUBTITLE blurp at 0,5,10,15 minutes e.g.
 	PlayerArgs "$SUBTITLE"; args="$OUT"
-
 	STARTAT=$(date +%s)
 
+	# Test play
 	if [ $TEST -ne 0 ]; then
-		head -n 5 "$SUBTITLE"
 		Msg "Choice:	$CHOICE"
-		[ "$CHOICE" = "${CHOICE#*:}" ] && ls -lh "$CHOICE"
-		Msg '
-	Press <Enter> to play
-	Type q and <Enter> or press q during playback to exit
-'
-		Msg "Test mode: $PLAYER $args \"$CHOICE\""
-		printf '\nCommand: '; read line
-		[ "$line" != 'q' ] && "$PLAYER" $args "$CHOICE"
-		exit 1
+		[ "$CHOICE" = "${CHOICE#$ONLINETPT:}" ] && ls -lh "$CHOICE"
+		Prompt "
+	------------------------------------
+	Test mode: $PLAYER $args \"$CHOICE\"
+	Choice: $CHOICE
+"
+		[ "$OUT" = 't' ] && Msg 'Subtitle sample' && head -n 10 "$SUBTITLE"
+		"$PLAYER" $args "$CHOICE"
+		err=$?
+		MPID=-1
+		Stop
+		Throw "Test mode ended (return $err)"
+
+	# Online play
+	elif [ "${CHOICE}" != "${CHOICE#$ONLINETPT:}" ]; then
+		if [ $ONLINE -ne 0 ]; then
+			"$PLAYER" $args "$CHOICE" >> "$LOGF" 2>&1 &
+			MPID=$!
+			Log "Stream ($MPID): $PLAYER $args \"$CHOICE\""
+		else
+			Throw "Online play disabled for $CHOICE"
+		fi
+
+	# Cache play
 	elif [ -s "$CHOICE" ]; then
-		# file is on filesystem so just play it
 		"$PLAYER" $args "$CHOICE" >> "$LOGF" 2>&1 &
 	    MPID=$!
-		Log "Local ($MPID): $PLAYER $args \"$CHOICE\""
-	elif [ $ONLINE -ne 0 -a "${CHOICE}" != "${CHOICE#*://}" ]; then
-		# no file on filesystem so try to stream it
-		"$PLAYER" $args "$ONLINEURL/$CHOICE" >> "$LOGF" 2>&1 &
-		MPID=$!
-		Log "Stream ($MPID): $PLAYER $args \"$ONLINEURL/$CHOICE\""
+		Log "Cache ($MPID): $PLAYER $args \"$CHOICE\""
 	else
 		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is $ONLINE ($ONLINE4K/$ONLINEHDR) ***"
 		exit 99
 	fi
-	echo "$MPID" >> "$lockf"
+
+	# Wait for player to finish
+	echo "$MPID" >> "$LOCKF"
 	wait $MPID
-	err=$?
-	sleep 3	# Sometimes PID hangs around after death
-	[ $err -gt 128 ] && { Log "Killing: $MPID"; Abort; exit 121; } || SaveState 0
+	err=$?	# 127 if bad pid, else retval from process
+	sleep 3	# Sometimes PID hangs around after state change
+	[ $err -gt 128 ] && Stop || SaveState 0
+ }
+
+Lock
+Options "$@"
+
+# Catch interupts to clean up
+trap Stop TERM INT HUP
+
+# Until we are killed...
+while [ 9 -eq 9 ]; do
+	ChooseVideo
+	Play
 done
 
 #################################################################################################################
@@ -1254,6 +1310,7 @@ done
 #	001	GLK	240131	Seasonal weight column to mix by %age
 #
 #	History
+#	025	GLK	240209	Downloads gone crazy; need setting to use but not get new downloads, state did not resume from 0, stateDB uses ID
 #	024	GLK	240208	Redid core caching / ATV choosing, fix some Darwinisms
 #	023	GLK	240206	Broke Apple streaming ... will test, Comment in final field of STABLE
 #	022	GLK	240205	Fix RESUME - was never working

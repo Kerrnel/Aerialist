@@ -1,11 +1,11 @@
 # Aerialist
-Videos Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by "crontab" like switching as well as auto caching or online only mode. Will install itself with 'install' as first parameter.
+Videos Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by cron like switching as well as auto caching or online only mode. Will install itself with 'install' as first parameter.
 
 FreeBSD/NetBSD/Darwin/Linux tested
 
-Usage: Aerialist [cmd[parm]] ...
+Usage: Aerialist [cmd [parm]] ...
 
-	Aerialist 1.24
+	Aerialist 1.25
 
 	Video screensaver plugin for xscreensaver
 
@@ -17,7 +17,7 @@ Usage: Aerialist [cmd[parm]] ...
 
 		Crontab like selection of season
 			See "STABLE" below
-		(e.g. Fireplace at night in Winter, Places, Animals by weekday)
+		(e.g. Fireplace at night in Winter, Places, Animals, Sports by weekday)
 
 	* Usage - For Terminal invocation or called by xscreensaver
 
@@ -45,3 +45,6 @@ Usage: Aerialist [cmd[parm]] ...
 
 	Call with no parameters to test with logging to terminal
 	Normally called from xscreensaver to enhance your idle screen
+
+TODO: Proper settings dialog with aerialist.xml for xscreensaver, Mac GUI
+Will probably never get there.
