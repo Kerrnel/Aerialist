@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240210
-gVers=025
+gDate=240216
+gVers=026
 #############################################################################
-#	Aerialist 1.25
+#	Aerialist 1.26
 #
 #	Video screensaver plugin for xscreensaver
 #
@@ -66,7 +66,7 @@ RESUME=1					# Resume video playback from last position when interrupted
 SOUND=0						# 0-100 audio volume, set in ~/.config/aerial if you wish videos with sound or in STABLE
 PANSCAN=1.0					# Crop 16:9 movies - set to 0 to not do it
 FORMATS=''					# List of formats to play / not play - e.g. -AV1 HEVC to disallow AV1 explicitly allow HEVC (implicitly all others) - requires mediainfo installed
-
+							# Example FORMATS='-AV1 -VP9' for MacBookPro11,2 / i7-4770HQ (not enough GPU power)
 SUBINTERVAL=2				# Description every this many minutes
 SUBREPEATS=55				# Number of times to repeat @ SUBINTERVAL
 TEXTSIZE=4					# %age of screen pixels for label
@@ -807,7 +807,7 @@ AppleTVDB()
 
 AppleDesc()
  {
-	# Download if needed to DB, make a copy to $1 if provided
+	# Return in OUT the ATV description for video in $1 if available
 	local	avu t n
 
 	AppleTVDB; avu="$OUT"
@@ -825,12 +825,29 @@ AppleDesc()
 	return 1
  }
 
+VideoDuration()
+ {
+	if [ "$CHOICE" = "${CHOICE#*//}" ]; then
+		if which 'mediainfo' >/dev/null 2>&1; then
+			f=$(mediainfo --Inform="Video;%Duration%" "$CHOICE")
+			f="${f%%.*}"
+			[ -n "$f" ] && f=$(($f / 1000)) || f=-2	# Seconds
+		else
+			f=-1
+		fi
+	else
+		# Online video duration? Max ATV in 2024 was 906 seconds ... to do this right, we'd have to know when played to completion... and store that
+		f=909
+	fi
+	OUT="$f"
+ }
+
 FormatIsOK()
  {
 	local	i f
 
 	# Can't test URL
-	if [ -n "$FORMATS" -a "$CHOICE" = "${CHOICE#*:}" ]; then
+	if [ -n "$FORMATS" -a "$CHOICE" = "${CHOICE#*//}" ]; then
 		if which 'mediainfo' >/dev/null 2>&1; then
 			# --Inform="Video;%Format%:%Duration%" ... but not a solution for URLs
 			f=$(mediainfo --Inform="Video;%Format%" "$CHOICE")
@@ -1025,29 +1042,34 @@ GetState()
 
 SaveState()
  {
-	local	t s line
+	local	t s line d old
 
 	OUT=0
 	if [ $RESUME -ne 0 ]; then
 		GetState; [ -z "$OUT" ] && OUT=0
-		if [ "$1" = '0' ]; then
-			t=0
-			[ $OUT -eq 0 ] && return 0
+		old=$OUT
+		if [ -n "$1" ]; then
+			t=$1
 		else
 			s=$(( $(date +%s) - $STARTAT ))	# How many seconds have played
-			[ $s -lt 3 ] && s=$((0 - $OUT))	# Reset position if played quickly (end not detected)
-			t=$(($OUT + $s - 2))	# Played before + played now + me
+			[ $s -lt 3 ] && s=$((0 - $old))	# Reset position if played quickly (end not detected)
+			t=$(($old + $s - 2))			# Played before + played now + me
 			[ $t -lt 0 ] && t=0
+			if [ $t -gt 0 ]; then
+				VideoDuration "$CHOICE"; d="$OUT"	# Beyond last minute?
+				[ $d -gt 0 -a $t -gt $(($d - 61)) ] && t=0
+			fi
 		fi
-		[ $t -gt 0 ] && echo "$t:$CIDENT" > "${STATEDB}.new"
-		if [ -s "$STATEDB" ]; then
-			while read line; do
-				[ "${line##*:}" != "$CIDENT" ] && echo "$line" >> "${STATEDB}.new"
-			done < "$STATEDB"
-			cp "${STATEDB}" "${STATEDB}.old"
+		# Save or remove state?
+		if [ $old -ne 0 -o $t -ne 0 ]; then
+			[ $t -gt 0 ] && echo "$t:$CIDENT" > "${STATEDB}.new"
+			if [ -s "$STATEDB" ]; then
+				while read line; do
+					[ "${line##*:}" != "$CIDENT" ] && echo "$line" >> "${STATEDB}.new"
+				done < "$STATEDB"
+			fi
+			cp "${STATEDB}.new" "${STATEDB}"
 		fi
-		cp "${STATEDB}.new" "${STATEDB}"
-		rm -f "${STATEDB}.old"
 		OUT=$t
 	fi
  }
@@ -1083,71 +1105,73 @@ Stop()
 	fi
  }
 
+
 Scale()
  {
-	local	n maxs maxd dig	o #	(e.g. 1 100 8 4 -> 0.125)
+	# Map $1 on a scale where $2 is $3
+	local	n maxs maxd dig	o #	(e.g. 1 100 8 4 -> 0.125 or 1/8 4 digits)
 	n=$1
 	maxs=$2
 	maxd=$3
 	dig=$4
 	n=$(($n * $dig * $maxd / $maxs))	#	1 -> 0.080; 100 -> 8.000
 	o=$(($n % $dig + $dig))
-	echo $((n / $dig)).${o#1}
+	OUT=$((n / $dig)).${o#1}
  }
 
 PlayerArgs()
  {
-	local	subf vol tsiz seek
+	local	subf vol tsiz seek args
 
 	seek=''
 	[ $RESUME -ne 0 ] && GetState && [ -n "$OUT" ] && seek="$OUT"
 
-	OUT=''
+	args=''
 	case "$PLAYER" in
 	  # Don't mess with screensaver, quiet, full screen, subtitles, seek, 
 	  'mplayer')
 		# Sometimes still using 80% cpu - I think not right -vo
-		[ $TEST -eq 0 ] && OUT="${OUT} -really-quiet"
-	  	OUT="${OUT} -nostop-xscreensaver -fs -title Aerialist -framedrop"
+		[ $TEST -eq 0 ] && args="${args} -really-quiet"
+	  	args="${args} -nostop-xscreensaver -fs -title Aerialist -framedrop"
 		if [ -n "$1" ]; then
-			OUT="${OUT} -sub $1"
-			[ -n "$TEXTSIZE" ] && OUT="${OUT} -subfont-text-scale $TEXTSIZE -subfont-autoscale 0"
-			[ -n "$TEXTRGB" ] && OUT="${OUT} -ass -ass-color $TEXTRGB"
+			args="${args} -sub $1"
+			[ -n "$TEXTSIZE" ] && args="${args} -subfont-text-scale $TEXTSIZE -subfont-autoscale 0"
+			[ -n "$TEXTRGB" ] && args="${args} -ass -ass-color $TEXTRGB"
 		fi
-	  	[ -n "$PANSCAN" ] && OUT="${OUT} -panscan $PANSCAN"
-	  	[ -n "$seek" ] && OUT="${OUT} -ss $seek"
-		[ -z "$SOUND" -o "$SOUND" = '0' ] && OUT="${OUT} -nosound" || OUT="${OUT} -volume $SOUND"
-		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} -really-quiet -wid $XSCREENSAVER_WINDOW"
+	  	[ -n "$PANSCAN" ] && args="${args} -panscan $PANSCAN"
+	  	[ -n "$seek" ] && args="${args} -ss $seek"
+		[ -z "$SOUND" -o "$SOUND" = '0' ] && args="${args} -nosound" || args="${args} -volume $SOUND"
+		[ -n "$XSCREENSAVER_WINDOW" ] && args="${args} -really-quiet -wid $XSCREENSAVER_WINDOW"
 	  ;;
 	  'mpv')
-		[ $TEST -eq 0 ] && OUT="${OUT} --really-quiet"
-		OUT="${OUT} --stop-screensaver=no --fs"		# Framedrop - auto in mpv
-		OUT="${OUT} --hwdec=auto-safe"				# auto, auto-safe
-#		OUT="${OUT} --vo=gpu"
-#		OUT="${OUT} --vo=vdpau"
-		[ -n "$SOUND" ] && OUT="${OUT} --volume=$SOUND"
+		[ $TEST -eq 0 ] && args="${args} --really-quiet"
+		args="${args} --stop-screensaver=no --fs"		# Framedrop - auto in mpv
+		args="${args} --hwdec=auto-safe"				# auto, auto-safe
+#		args="${args} --vo=gpu"
+#		args="${args} --vo=vdpau"
+		[ -n "$SOUND" ] && args="${args} --volume=$SOUND"
 		if [ -n "$1" ]; then
-			OUT="${OUT} --sub-file=$1"
-			[ -n "$TEXTSIZE" ] && OUT="${OUT} --sub-font-size=$(($TEXTSIZE * 8))"
-			[ -n "$TEXTRGB" ] && OUT="${OUT} --sub-color=#$TEXTRGB"
+			args="${args} --sub-file=$1"
+			[ -n "$TEXTSIZE" ] && args="${args} --sub-font-size=$(($TEXTSIZE * 8))"
+			[ -n "$TEXTRGB" ] && args="${args} --sub-color=#$TEXTRGB"
 		fi
-	  	[ -n "$seek" ] && OUT="${OUT} --start=$seek"
-		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} --wid=$XSCREENSAVER_WINDOW"
+	  	[ -n "$seek" ] && args="${args} --start=$seek"
+		[ -n "$XSCREENSAVER_WINDOW" ] && args="${args} --wid=$XSCREENSAVER_WINDOW"
 	  ;;
 	  'vlc')
-		[ $TEST -eq 0 ] && OUT="${OUT} --quiet --no-qt-error-dialogs"
-		OUT="${OUT} --no-disable-screensaver -f --no-interact --play-and-exit --started-from-file"
+		[ $TEST -eq 0 ] && args="${args} --quiet --no-qt-error-dialogs"
+		args="${args} --no-disable-screensaver -f --no-interact --play-and-exit --started-from-file"
 		if [ -n "$1" ]; then
-			OUT="${OUT} --sub-file $1"
-			[ -n "$TEXTSIZE" ] && OUT="${OUT} --sub-text-scale $(($TEXTSIZE * 16))"
-			[ -n "$TEXTRGB" ] && OUT="${OUT} --freetype-color="$(($(echo "ibase=16; $TEXTRGB" | bc) / 256))
+			args="${args} --sub-file $1"
+			[ -n "$TEXTSIZE" ] && args="${args} --sub-text-scale $(($TEXTSIZE * 16))"
+			[ -n "$TEXTRGB" ] && args="${args} --freetype-color="$(($(echo "ibase=16; $TEXTRGB" | bc) / 256))
 		fi
-	  	[ -n "$seek" ] && OUT="${OUT} --start-time $seek"
-		[ -z "$SOUND" -o "$SOUND" = '0' ] && OUT="${OUT} --no-audio" || OUT="${OUT} --gain "$(Scale $SOUND 100 4 1000)	# Should be 8 - but seems loud
-		[ -n "$XSCREENSAVER_WINDOW" ] && OUT="${OUT} --drawable-xid $XSCREENSAVER_WINDOW --no-embedded-video"
+	  	[ -n "$seek" ] && args="${args} --start-time $seek"
+		[ -z "$SOUND" -o "$SOUND" = '0' ] && args="${args} --no-audio" || { Scale $SOUND 100 4 1000; args="${args} --gain $OUT"; } # Should be 8 - but seems loud
+		[ -n "$XSCREENSAVER_WINDOW" ] && args="${args} --drawable-xid $XSCREENSAVER_WINDOW --no-embedded-video"
 	  ;;
 	esac	
-	OUT="${OUT} $PLARGS"
+	OUT="${args} $PLARGS"
  }
 
 Options()
@@ -1238,6 +1262,14 @@ Lock()
 	echo $$ > "$LOCKF"
  }
 
+LoadWatch()
+ {
+	# Kill if high CPU after some time
+	
+	LoadFnc='Secs() { local s d t; s=0; t="$1"; d="${t%%-*}"; [ "$d" != "$t" ] && s=$((24 * 3600 * ${d#0})) && t="${t#*-}"; d="${t##*:}"; t="${t%:*}"; s=$(($s + ${d#0})); [ "$d" != "$t" ] && { d="${t##*:}"; t="${t%:*}"; s=$(($s + 60 * ${d#0})); }; [ "$d" != "$t" ] && { s=$(($s + 3600 * ${t#0})); }; eval "$2"="$s"; }; LoadPct() { OUT=$(ps -o etime,time -p "$1" | { while read e t; do [ "$e" = "${e#E}" ] && { Secs "$e" E; Secs "$t" T; echo $(($T * 100 / $E)); }; done; }) || OUT=-1; }'
+	sh -c "sleep 66; $LoadFnc; LoadPct $1; [ \$OUT -gt 50 ] && { echo AerialOverload:\$OUT; kill $1; } || echo AerialLoad:\$OUT" >> "$LOGF" 2>&1 &
+ }
+
 Play()
  {
 	# Prep
@@ -1255,6 +1287,7 @@ Play()
 	Choice: $CHOICE
 "
 		[ "$OUT" = 't' ] && Msg 'Subtitle sample' && head -n 10 "$SUBTITLE"
+		LoadWatch $$	# Watch ourselves to test
 		"$PLAYER" $args "$CHOICE"
 		err=$?
 		MPID=-1
@@ -1283,6 +1316,7 @@ Play()
 
 	# Wait for player to finish
 	echo "$MPID" >> "$LOCKF"
+	LoadWatch "$MPID"
 	wait $MPID
 	err=$?	# 127 if bad pid, else retval from process
 	sleep 3	# Sometimes PID hangs around after state change
@@ -1307,9 +1341,11 @@ done
 #		(See VideoDescription function below)
 #
 #	Todo
+#	002	GLK	240216	Store HighCPU format of video in FORMATS to avoid in future
 #	001	GLK	240131	Seasonal weight column to mix by %age
 #
 #	History
+#	026	GLK	240216	Monitor CPU usage of $PLAYER - if it is over 50% at 1 minute; skip to next, check duration when saving state if able
 #	025	GLK	240209	Downloads gone crazy; need setting to use but not get new downloads, state did not resume from 0, stateDB uses ID
 #	024	GLK	240208	Redid core caching / ATV choosing, fix some Darwinisms
 #	023	GLK	240206	Broke Apple streaming ... will test, Comment in final field of STABLE
