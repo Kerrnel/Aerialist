@@ -26,7 +26,7 @@ Usage: Aerialist [cmd [parm]] ...
 	Cmd			Action
 	---			------
 	install		install into .xscreensaver file, offer to pre-cache videos
-	set			Edit ~/.config/aerialist settings
+	set		Edit ~/.config/aerialist settings
 	seasons		List seasons
 	vid [s]		List videos for a season
 	cron		List time table for which videos to play, show current
@@ -40,8 +40,8 @@ Usage: Aerialist [cmd [parm]] ...
 
 	(For ATV primarily)
 	online		Use ATV Videos via web only
-		4k		Use 4k versions of ATVs
-		hdr		Use HDR versions of ATVs
+		4k	Use 4k versions of ATVs
+		hdr	Use HDR versions of ATVs
 	offline		Use Cached videos only
 
 	Call with no parameters to test with logging to terminal
