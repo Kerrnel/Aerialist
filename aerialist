@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240216
-gVers=026
+gDate=240222
+gVers=027
 #############################################################################
-#	Aerialist 1.26
+#	Aerialist 1.27
 #
 #	Video screensaver plugin for xscreensaver
 #
@@ -42,7 +42,7 @@ gVers=026
 #	movies [p]	Path to videos - (no seasons)
 #	id [p]		Show video names & ids for a given path
 #
-#	(For xscreensaver primarily)
+#	(For AppleTV videos primarily)
 #	online		Use ATV Videos via web only
 #		4k		Use 4k versions of ATVs
 #		hdr		Use HDR versions of ATVs
@@ -120,6 +120,9 @@ STABLE='
 #  the STABLE above
 VITES='
 	dmo:www.dailymotion.com/video/
+	nma:noodlemagazine.com/watch/
+	vmo:vimeo.com/
+	yap:yandex.com/video/preview/
 	ytb:www.youtube.com/watch?v=
 '
 
@@ -130,6 +133,7 @@ VITES='
 BITES='
 Animals=	Wb14e21CN5Y s7DbVTkaXn0 NyelTWkAMUE yYoWnLCvYo0 DVTRklHhEsU
 			ZPyQh7jjbpE qOXeIip16No eoTpdTU8nTA asTC8fvw0W8 3qBfTWuFjbo
+			Uu5R1ENCmTY # Capybaras for Keanu
 
 Fireplace=	mKCieTImjvU 6j3hPg0t5fo B0j__sZXiWI 7pTdGR46ZKA eYy-ahKKMys
 			paiSoYQhaBE KzmtBgqap0s wNwMnGRjgdw bmGsQkLb4yg
@@ -140,7 +144,9 @@ Night=		B5unCXpegAw o7w1jq29oZU bCEMBU9Sk98 SiryvrStb8E -SMKVJO_wGo
 			HTeNfkAoUlI	REDVbTQxMXo vSwz4n24koY _Sx8NX2TsqI lpmAs7FhOs4
 			y1doKCK7Dwk qgfd-uWTVwg bCEMBU9Sk98 B5unCXpegAw DhNMS5mD4ak
 			3Qn7_mljjTg TfqaEJpQmDc veCr5M0rNpo lL5RPnXyklk pyu-djhQFVU
-			6zh-LN-dObY DslTxXsDLsw gosjiD288Jk N-FwVPT0BSk
+			6zh-LN-dObY DslTxXsDLsw gosjiD288Jk N-FwVPT0BSk 9uZ8CCa0t4Y
+			NN-PE_qiokw yY2xRxycjDE AwIu-UwEtRI MN98aki1Guk -xyvrFc2i6Y
+			MiCa3ub1iK8	
 
 Places=		Ee0Qh_nIoHw	#	Afrika
 			CHSnz0bCaUk	#	Alaska
@@ -159,8 +165,10 @@ Places=		Ee0Qh_nIoHw	#	Afrika
 			6lxg0NKZjOE	#	France
 			8_j64iq_hTE	#	Germany
 			li-_BLtq58w	#	Germany II
+			3nu_PVydBfs	#	Germany Munich
 			rFVpSwgCkCo	#	Hawaii
 			8SO273jh_LI	#	India
+			Q8O9vUG4d2s gCouE441TW4 	# India - Chennai
 			ycDLfQ1Cv_Y	#	Ireland
 			56gZuTy6xIc	#	Italy
 #			aaiLCfShqG0	#	Italy - Rome 2hr
@@ -181,7 +189,13 @@ Places=		Ee0Qh_nIoHw	#	Afrika
 			kVxTrhojpFI	#	Switzerland
 			DEAcPVg8V7U	#	Tanzania
 			hXa-WgLCyok	#	Thailand
+			_tYThjKtBKg TYfYX0ngLkE #	Ukraine Kyiv pre-Putin megalomania
+			kmG0kifKaFs #	Ukraine Odessa pre-Putin destruction
 			4Z9mUjtFJYY	#	USA
+			16Xaqxiggw0 oAZdQFc7iHM	w8LLarFIy3k	WRLhiPv2VD0	#	USA - Cohasset, MA
+			fNETOWpWc_Q LyZCSP6SkfQ 5V323pJeUQI OG4PZtp6epQ	rdhEGgwJAYA #	USA - Indialantic & Naples, FL
+			eaokcXVFLlc #	USA - Winston Salem, NC
+			oVnwgZV4MCk	#	USA - One Ring to Rule Them All
 			_K-Gtb_ywfg	#	Venezuela
 			64bA0CxioCE	#	Vietnam
 			Ihiy9A__QM8 #	Wonders
@@ -211,8 +225,10 @@ Sports=		wj_ZEDISBnA I6VpZ3bnnKI o7W7OvETO40 plt8tdGyygI lMbN6IcrxLs
 			KxllkdTTs1M o7W7OvETO40 NR7YyJrj0c8 vQopnwLFdXc 2giTb7IpJDU
 			nwpX4zEW1wc tx1-fDueJxg D7v4VAB1NoY J2v2k06Rp-U rC4UVSqi0qc
 			9nuGI9fnOME V55DRE9vJSs 5oBlBwd9HeA zrbpDg1xHSU MQVxhgdzI2U
+			3HxnHPJu2fs 5adBuaBpvag 1hPkXcXeY4w WL1kRhx-Q6U F_P9nMhSj64
 
 Winter=		ZyCudosHxUA 3PXUO_7Pj5o WrBmEymjbmU Q4Ht5wd9Iec UmhbcBClFm8
+			EE38xxyJW5I
 
 Spring=		UZ9uyQI3pF0 ikn24Lvyb5U LLk0rwWq-E8 Y88Nm7RsZAk hOdhtImnb5Y
 
@@ -225,25 +241,59 @@ Autumn=		jeKABSyMlTU 6qxeqGEFDt4 qJDK-kdRZJE lN9LdcAQnjw xqDuf48WyzI
 Music=		YbBU06irWT8 n2MtEsrcTTs B9FzVhw8_bY JSR5ETrEmIU 6iAVZr7aAJQ
 			djV11Xbc914 sBzrzS1Ag_g rMqayQ-U74s kHLHSlExFis JF8BRvqGCNs
 			p7FCgw_GlWc wfN4PVaOU5Q rP9Z5Pc8cRM G4LIM9VYhB0 c18441Eh_WE
+			Zzyfcys1aLM QpbHdIrtpNo 6yP4Nm86yk0 5NPBIwQyPWE 8Ilh1ewceco
+			5anLPw0Efmo kXYiU_JCYtU eVTXPUF4Oz4 fV4DiAyExN0 qMxX-QOV9tI
+			iP6XpLQM2Cs KlyXNRrsk4A TUVcZfQe-Kw G7KNmW9a75Y C-u5WLJ9Yk4
+			LOZuxwVk7TU 9uWwvQKGjLI KwIe_sjKeAY IxkJHX7ukKE tDl3bdE3YQA
 
 DIY=		EIGcemiOT4M ZsE7IR0Ty74 JAJFQw8Vo-o EIGcemiOT4M -207fdj7Wuo
 			0CdG6qkGfm8
 '
 
+# If title of video should be changed from default truncated filename / ATV description
+# If lower case of pre: is found in default title, post: used as title
+RETITLE='
+b2-2:Kamehameha Childhood Hideout?
+b2-4:San Francisco Dawn
+b4-3:Golden Gate Bridge from San Francisco
+396B_1105:Somewhere in Italy?
+401c_1037:Ireland and Britain by Night from ISS?
+
+CH_C007_C011:China West of Xi`an?
+DB_D001_C005:Dubai Harbor?
+LA_A006_C008:LAX
+MEX_A006_C008:Republicans meeting in Mexico?
+PA_A010_C007:Democrats meeting in PA?
+TH_804_A001:Thailand (aka Paradise) Undersea?
+
+1223LV_FL:Maybe Chicago?
+GMT026:Korea and Japan at Night from Space?
+GMT110:Aurora Antarctica
+GMT312:Africa at Night from Space?
+
+arthursseat:Arthur`s Seat, Edinburgh, UK
+big-sur:Big Sur, California
+hampstead:London, UK from Hampstead
+northstrip:Las Vegas Strip (North)
+pecos_fog:Foggy Pecos, Texas, US
+portland:Portland, Oregon, US
+'
+
 # Globals
-MPID=0				# Player pid
+MPID=-1				# Player pid
 TESTME=''			# Fake a selection with test XYZ (use 'test' 'VideoPath')
 SEASON='Apple'		# The collection of videos under AERIAL that we will use - chosen from STABLE according to time/date
 CHOICE=''			# The chosen video
 CTITLE=''			# Display name of chosen video
 CIDENT=''			# ID of chosen video
+CFORM=''			# Encoding Format of chosen video (if FORMATS != '')
 LOCKF=''			# Lock file
 
 # Markers
 OS_TYPE=$(uname -s)
 USER=$(id -un)
 USID=$(id -u)
-LOGF="/tmp/aerialist.$USER.log"
+LOGF="/tmp/${0##*/}.$USER.log"
 
 # XDG
 [ -z "$XDG_CONFIG_HOME" ] && XDG_CONFIG_HOME=~/'.config'
@@ -446,7 +496,7 @@ VideoID()
 			done
 			f="${f%-$i}"
 		elif [ -s "$1" ]; then
-			i=+$(FileSize "$1")
+			i='='$(FileSize "$1")
 		fi
 		AppleDesc "$f" && d="$OUT"
 	else
@@ -457,6 +507,7 @@ VideoID()
 	[ "$f" != "${f#*-}" ] && s="${f%-*}" && [ ${#s} -gt 3 ] && d="$s" && f="${f#$d-}"
 	[ -z "$d" ] && d="$f" && f=''
 	[ -z "$i" ] && i="$d"	# Use description if no ID in name
+	Dbg "VID: [$i : $d : $f ]"
 	OUT="$i"
 	OU2="$d"
 	OU3="$f"
@@ -469,10 +520,10 @@ VideoIDs()
 	Msg "Scanning: $1"
 	echo '_'
 	echo 'ID		Desc			Name		Original'
-	for f in "${1}"/*; do
+	for f in "${1}"/* "$1"; do if [ -s "$f" ]; then
 		VideoID "$f"
 		echo "[$OUT]	[$OU2]	[$OU3]		${f##*/}"
-	done
+	fi; done
  }
 
 Download()
@@ -481,7 +532,7 @@ Download()
 	# $2 if 'one' - just download one and return
 	#	if 'cache' - download one in background
 	#	if 'count' - just return number of videos for this season (to compare e.g. to folder count) in $OUT
-	local line st url n i f v cnt
+	local line st url n i f v cnt s
 
 	# Download a Season's content
 	# Prompt "Download entry ($CACHE): $@"
@@ -499,7 +550,11 @@ Download()
 				while read line; do if [ -n "$line" ]; then
 					AppleURL "$line"; st="$OU2"; url="$OUT"; n="${OUT##*/}"
 					Dbg "AppleTV:	$st ($url)"
-					for i in "$MOVIES/"*"${n}"; do [ -s "$i" ] && n=''; done
+					for i in "$MOVIES/"*"${n}"; do if [ -s "$i" ]; then
+						# Check bad size from aborted download e.g.
+						s=$(FileSize "$i")
+						[ $s -gt 5678123 ] && n='' || { Log "Removing bad cache: $i"; rm "$i"; }
+					fi; done
 					if [ -n "$n" ]; then
 						if [ "$2" = 'cache' ]; then
 							Prompt "Continue to cache $url as $st-$n in the background"
@@ -542,12 +597,18 @@ Download()
 					v="${v#$src:}"
 					[ -z "$src" ] && src='YT'
 					for f in *"${v}"*; do if [ -s "$f" ]; then
+						s=$(FileSize "$f")
+						[ $s -gt 5678123 ] || { Log "Removing bad cache: $f"; rm "$f"; f=''; }
 						f="${f%.*}"
-						f="${f%]*}"
-						f="${f##*[}"
-						while [ ${#f} -gt 11 -a "${f}" != "${f#*-}" ]; do
-							f="${f#*-}"	# ID might have '-' in it anywhere
-						done
+						if [ "$f" != "${f%]*}" ]; then	# yt-dlp stashes ID in brackets at end of name
+							f="${f%]*}"
+							f="${f##*[}"
+						else
+							# Old format - video ID (conflict with '-' in video ID from some YT)
+							while [ ${#f} -gt 11 -a "${f}" != "${f#*-}" ]; do
+								f="${f#*-}"	# ID might have '-' in it anywhere
+							done
+						fi
 						[ "$f" = "$v" ] && v=''
 					fi; done
 					if [ -n "$v" ]; then
@@ -656,7 +717,7 @@ Type any parameters to add when started separated with a space:
 
 	# Download videos?
 	[ $CACHE -lt 1 ] && Msg "CACHE is 0 - so no cached videos will be used, only played via the AppleTV service."
-	[ $CACHE -lt 2 ] && Msg "CACHE is less than 2 - so no videos will be downloaded." && exit 21
+	[ $CACHE -lt 2 ] && Throw "CACHE is less than 2 - so no videos will be downloaded." 21
 
 	echo "
 Needed Programs (Set up XScreenSaver in its GUI)
@@ -687,7 +748,7 @@ Otherwise videos will be downloaded/streamed as needed if you stop now.
 		fi
 	done
 
-	exit 22
+	Throw 'Install complete' 0
  }
 
 Random()
@@ -855,7 +916,7 @@ FormatIsOK()
 				Dbg "Format: $f"
 				OUT="$f"
 				for i in $FORMATS; do
-					[ "$i" = "$f" ] && return 0
+					[ "$i" = "$f" ] && Log "Acceptable: $f" && return 0
 					[ "${i#-}" = "$f" ] && return 1
 				done
 				return 0
@@ -872,6 +933,7 @@ FormatIsOK()
 ProposeVideo()
  {
 	# Select a video according to SEASON - but may be wrong format - return file/url in $CHOICE
+	# Set SEASON, CHOICE, CTITLE, CIDENT
 	local	n i hour w f
 
 	ChooseSeason "$@"	# Select right set of videos
@@ -884,7 +946,7 @@ ProposeVideo()
 			AppleTVDB "$VIDEODB"
 		elif [ -d "$MOVIES" -a $CACHE -ne 0 ]; then
 			Dbg "Find:	find \"$MOVIES\" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o  -iname '*.webm'"
-			find "$MOVIES" -type f -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o -iname '*.webm' > "$VIDEODB"
+			find "$MOVIES" -type f -size +2M -iname '*.mkv' -o -iname '*.mov' -o -iname '*.mp4' -o -iname '*.webm' > "$VIDEODB"
 		fi
 
 		[ -s "$VIDEODB" ] && n=$((0 + $(wc -l < "$VIDEODB"))) || n=0
@@ -909,6 +971,8 @@ ProposeVideo()
 	CHOICE="$OUT"
 	[ -z "$CHOICE" ] && Throw "No choice in $VIDEODB"
 
+	VideoID "$CHOICE"; CIDENT="$OUT"; CTITLE="$OU2"
+
 	# Find cached/renamed items
 	if [ "$SEASON" = 'Apple' ]; then				# Offline (vs AppleTV)?
 		AppleURL "$CHOICE";	CHOICE="$OUT"; CTITLE="$OU2"
@@ -922,12 +986,13 @@ ProposeVideo()
 		fi
 	elif [ ! -s "$CHOICE" ]; then
 		Log "Gone:	$CHOICE"
-		VideoID "$CHOICE"
-		CIDENT="$OUT"
 		for f in "$MOVIES"/*"$CIDENT"*; do
 			[ ! -s "$f" ] && f=''
 		done
-		[ -s "$f" ] && CHOICE="$f" && Log "Subst:	$f ($CIDENT)"
+		if [ -s "$f" ]; then
+			CHOICE="$f"
+			Log "Subst:	$f ($CIDENT)"
+		fi
 	fi
  }
 
@@ -939,9 +1004,8 @@ ChooseVideo()
 	while [ $i -lt 11 ]; do
 		ProposeVideo
 		if FormatIsOK; then
-			VideoID "$CHOICE"
-			CIDENT="$OUT"
-			VideoDescription "$OU2"; CTITLE="$OUT"					# Allow for overriding file name / Apple description
+			CFORM="$OUT"
+			VideoDescription "$CTITLE"; CTITLE="$OUT"					# Allow for overriding file name / Apple description
 			return 0
 		fi
 		Log "Ignoring format: $OUT from $CHOICE"
@@ -955,39 +1019,14 @@ VideoDescription()
 	#	If video filename (lower cased) matches before ':',
 	#	show string after ':' instead of file name
 	local	line k v name
-	local	vd='
-b2-2:Kamehameha Childhood Hideout?
-b2-4:San Francisco Dawn
-b4-3:Golden Gate Bridge from San Francisco
-396B_1105:Somewhere in Italy?
-401c_1037:Ireland and Britain by Night from ISS?
 
-CH_C007_C011:China West of Xi`an?
-DB_D001_C005:Dubai Harbor?
-LA_A006_C008:LAX
-MEX_A006_C008:Republicans meeting in Mexico?
-PA_A010_C007:Democrats meeting in PA?
-TH_804_A001:Thailand (aka Paradise) Undersea?
-
-1223LV_FL:Maybe Chicago?
-GMT026:Korea and Japan at Night from Space?
-GMT110:Aurora Antarctica
-GMT312:Africa at Night from Space?
-
-arthursseat:Arthur`s Seat, Edinburgh, UK
-big-sur:Big Sur, California
-hampstead:London, UK from Hampstead
-northstrip:Las Vegas Strip (North)
-pecos_fog:Foggy Pecos, Texas, US
-portland:Portland, Oregon, US
-'
 	ToLower "$1"; name="$OUT"
-	OUT=$(echo "$vd" | while read line; do if [ -n "$line" ]; then
+	OUT=$(echo "$RETITLE" | while read line; do if [ -n "$line" ]; then
 		v="${line#*:}"
 		ToLower "${line%%:*}"; k="$OUT"
 		[ "${name#*$k}" != "$name" ] && echo "$v"
 	fi; done)
-	[ -z "$OUT" ] && OUT="${1%-???????????}"	# Drop 11c youtube code for youtube-dl videos
+	[ -z "$OUT" ] && OUT="$1"
  }
 
 ToLower()
@@ -1031,47 +1070,45 @@ GetState()
 	OUT=''
 	if [ $RESUME -ne 0 ]; then
 		if [ -s "$STATEDB" ]; then
-			while read line; do
-				[ "${line##*:}" = "$CIDENT" ] && OUT="${line%%:*}" # && Log "State for $CIDENT is $OUT"
-			done < "$STATEDB"
+			line=$(sed -n -e '/:'"$CIDENT"'$/{p;q}' "$STATEDB")
+			OUT="${line%%:*}" # && Log "State for $CIDENT is $OUT"
 		fi
 		return 0
 	fi
 	return 1
  }
 
-SaveState()
+SetState()
  {
-	local	t s line d old
+	local	t s line d old db
 
 	OUT=0
 	if [ $RESUME -ne 0 ]; then
-		GetState; [ -z "$OUT" ] && OUT=0
-		old=$OUT
+		GetState
+		old=${OUT:-0}
 		if [ -n "$1" ]; then
 			t=$1
 		else
-			s=$(( $(date +%s) - $STARTAT ))	# How many seconds have played
-			[ $s -lt 3 ] && s=$((0 - $old))	# Reset position if played quickly (end not detected)
-			t=$(($old + $s - 2))			# Played before + played now + me
+			s=$(( $(date +%s) - $STARTAT ))	# Seconds played
+			[ $s -lt 3 ] && Log "Quicky reset: $s" && s=$((0 - $old))	# Reset position if played quickly (end not detected)
+			t=$(($old + $s - 2))										# Played before + played now + me
 			[ $t -lt 0 ] && t=0
 			if [ $t -gt 0 ]; then
 				VideoDuration "$CHOICE"; d="$OUT"	# Beyond last minute?
-				[ $d -gt 0 -a $t -gt $(($d - 61)) ] && t=0
+				[ $d -gt 0 -a $t -gt $(($d - 61)) ] && Log "Beyond $OUT: $t" && t=0
 			fi
 		fi
 		# Save or remove state?
+		Log "States: $old / $t [$CIDENT]"
 		if [ $old -ne 0 -o $t -ne 0 ]; then
-			[ $t -gt 0 ] && echo "$t:$CIDENT" > "${STATEDB}.new"
-			if [ -s "$STATEDB" ]; then
-				while read line; do
-					[ "${line##*:}" != "$CIDENT" ] && echo "$line" >> "${STATEDB}.new"
-				done < "$STATEDB"
-			fi
-			cp "${STATEDB}.new" "${STATEDB}"
+			[ -s "$STATEDB" ] && db=$(sed -n -e '/:'"$CIDENT"'$/!p' "$STATEDB") || db=''
+			echo "$db" > "$STATEDB"
+			[ $t -gt 0 ] && echo "$t:$CIDENT" >> "$STATEDB"
 		fi
 		OUT=$t
+		return 0
 	fi
+	return 1
  }
 
 IsUp()
@@ -1086,23 +1123,23 @@ IsUp()
 
 Stop()
  {
+	# Must exit - use for trap TERM INT HUP to exit cleanly
 	local	mpid f
-	if [ $MPID -ne 0 ]; then
+	if [ $MPID -gt 0 -o $TEST -ne 0 ]; then
 		mpid="$MPID"
-		MPID=0
+		MPID=-1
 		if [ $mpid -gt 0 ]; then
 			Log "Stop: $mpid"
 			IsUp $mpid && kill $mpid
 		fi
-		mv -f "$LOCKF" "${LOCKF}.old"
-		SaveState
-		[ $RESUME -ne 0 ] && Log "Stopped at: $OUT"
-		[ $mpid -gt 0 ] && sleep 3 && IsUp $mpid && Log "Ninja: $mpid" && kill -9 $mpid
-		[ $mpid -ge 0 ] && exit 66
+		SetState
+		[ $mpid -gt 0 ] && sleep 6 && IsUp $mpid && Log "Ninja: $mpid" && kill -9 $mpid
 	else
-		Log 'Lost player id'
+		Log 'Player down'
 		cat "$LOCKF" >> "$LOGF"
 	fi
+	mv -f "$LOCKF" "${LOCKF}.old"
+	Throw "${1:-End}" "${2:-0}"
  }
 
 
@@ -1211,7 +1248,7 @@ Options()
 #" >> "$PREFS"
 			head -n 90 "$0" | tail -n 40 >> "$PREFS"
 		fi
-		exec "$EDITOR" "$PREFS"; exit 0
+		exec "$EDITOR" "$PREFS"; Throw 'Complete' 0
 	  ;;
 	esac; shift; [ $a -ne 0 -a -n "$1" ] && shift; done
 
@@ -1252,10 +1289,10 @@ Lock()
  {
 	local	pid
 	# Lock for this display
-	LOCKF="$XDG_RUNTIME_DIR/.aerialist.${DISPLAY#*:}.lock"
+	LOCKF="$XDG_RUNTIME_DIR/.${0##*/}.${DISPLAY#*:}.lock"
 	if [ -e "$LOCKF" ]; then
 		pid=$(head -n 1 "$LOCKF")	# aerialist
-		IsUp "$pid" && Log "Aerialist locked by $pid in $LOCKF" && exit 33
+		IsUp "$pid" && Throw "${0##*/} locked by $pid in $LOCKF" 33
 		pid=$(tail -n 1 "$LOCKF")	# $PLAYER
 		IsUp && Dbg "Ninja: $pid" && kill -9 "$pid"
 	fi
@@ -1265,9 +1302,8 @@ Lock()
 LoadWatch()
  {
 	# Kill if high CPU after some time
-	
 	LoadFnc='Secs() { local s d t; s=0; t="$1"; d="${t%%-*}"; [ "$d" != "$t" ] && s=$((24 * 3600 * ${d#0})) && t="${t#*-}"; d="${t##*:}"; t="${t%:*}"; s=$(($s + ${d#0})); [ "$d" != "$t" ] && { d="${t##*:}"; t="${t%:*}"; s=$(($s + 60 * ${d#0})); }; [ "$d" != "$t" ] && { s=$(($s + 3600 * ${t#0})); }; eval "$2"="$s"; }; LoadPct() { OUT=$(ps -o etime,time -p "$1" | { while read e t; do [ "$e" = "${e#E}" ] && { Secs "$e" E; Secs "$t" T; echo $(($T * 100 / $E)); }; done; }) || OUT=-1; }'
-	sh -c "sleep 66; $LoadFnc; LoadPct $1; [ \$OUT -gt 50 ] && { echo AerialOverload:\$OUT; kill $1; } || echo AerialLoad:\$OUT" >> "$LOGF" 2>&1 &
+	sh -c "sleep 66; $LoadFnc; LoadPct $1; [ \$OUT -gt 50 ] && { echo Overloaded:\$OUT; kill $1; } || echo LoadOK:\$OUT" >> "$LOGF" 2>&1 &
  }
 
 Play()
@@ -1276,30 +1312,28 @@ Play()
 	Subtitles "$CTITLE" > "$SUBTITLE"		# Create SUBTITLE blurp at 0,5,10,15 minutes e.g.
 	PlayerArgs "$SUBTITLE"; args="$OUT"
 	STARTAT=$(date +%s)
-
 	# Test play
 	if [ $TEST -ne 0 ]; then
-		Msg "Choice:	$CHOICE"
 		[ "$CHOICE" = "${CHOICE#$ONLINETPT:}" ] && ls -lh "$CHOICE"
 		Prompt "
 	------------------------------------
-	Test mode: $PLAYER $args \"$CHOICE\"
-	Choice: $CHOICE
+	Test command: $PLAYER $args \"$CHOICE\"
+	Choice ($CFORM/$CIDENT): $CHOICE
+	Title:	$CTITLE
 "
 		[ "$OUT" = 't' ] && Msg 'Subtitle sample' && head -n 10 "$SUBTITLE"
 		LoadWatch $$	# Watch ourselves to test
 		"$PLAYER" $args "$CHOICE"
 		err=$?
-		MPID=-1
-		Stop
-		Throw "Test mode ended (return $err)"
+		MPID=-9
+		Stop "Test mode ended (return from player was $err)"
 
 	# Online play
 	elif [ "${CHOICE}" != "${CHOICE#$ONLINETPT:}" ]; then
 		if [ $ONLINE -ne 0 ]; then
 			"$PLAYER" $args "$CHOICE" >> "$LOGF" 2>&1 &
 			MPID=$!
-			Log "Stream ($MPID): $PLAYER $args \"$CHOICE\""
+			Log "Stream ($MPID/$CFORM): $PLAYER $args \"$CHOICE\""
 		else
 			Throw "Online play disabled for $CHOICE"
 		fi
@@ -1308,23 +1342,22 @@ Play()
 	elif [ -s "$CHOICE" ]; then
 		"$PLAYER" $args "$CHOICE" >> "$LOGF" 2>&1 &
 	    MPID=$!
-		Log "Cache ($MPID): $PLAYER $args \"$CHOICE\""
+		Log "Cache Play ($MPID/$CFORM): $PLAYER $args \"$CHOICE\""
 	else
-		Log "*** $MOVIES ($CHOICE) is uncached and ONLINE is $ONLINE ($ONLINE4K/$ONLINEHDR) ***"
-		exit 99
+		Throw "*** $MOVIES ($CHOICE) is uncached and ONLINE is $ONLINE ($ONLINE4K/$ONLINEHDR) ***" 99
 	fi
 
 	# Wait for player to finish
 	echo "$MPID" >> "$LOCKF"
 	LoadWatch "$MPID"
-	wait $MPID
-	err=$?	# 127 if bad pid, else retval from process
+	wait $MPID;	err=$?	# 127 if bad pid, else retval from process
+	Log "Playing ended: $err"
 	sleep 3	# Sometimes PID hangs around after state change
-	[ $err -gt 128 ] && Stop || SaveState 0
+	[ $err -gt 128 ] && Stop || SetState 0
  }
 
-Lock
 Options "$@"
+Lock
 
 # Catch interupts to clean up
 trap Stop TERM INT HUP
@@ -1345,6 +1378,7 @@ done
 #	001	GLK	240131	Seasonal weight column to mix by %age
 #
 #	History
+#	027	GLK	240222	Broke get/set state at some point - fixed/optimized, $CFORM, bad cached item removal
 #	026	GLK	240216	Monitor CPU usage of $PLAYER - if it is over 50% at 1 minute; skip to next, check duration when saving state if able
 #	025	GLK	240209	Downloads gone crazy; need setting to use but not get new downloads, state did not resume from 0, stateDB uses ID
 #	024	GLK	240208	Redid core caching / ATV choosing, fix some Darwinisms

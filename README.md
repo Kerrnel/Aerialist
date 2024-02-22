@@ -5,7 +5,7 @@ FreeBSD/NetBSD/Darwin/Linux tested
 
 Usage: Aerialist [cmd [parm]] ...
 
-	Aerialist 1.25
+	Aerialist 1.27
 
 	Video screensaver plugin for xscreensaver
 
@@ -34,10 +34,11 @@ Usage: Aerialist [cmd [parm]] ...
 
 	sound [v]	Set volume to this %age
 	aerial [p]	Path to find folders of videos (aka Seasons)
-	movies [p]	Path to videos - (no seasons)
+	season [p]	Force this season
+	movies [p]	Use these videos - (no seasons)
 	id [p]		Show video names & ids for a given path
 
-	(For xscreensaver primarily)
+	(For ATV primarily)
 	online		Use ATV Videos via web only
 		4k		Use 4k versions of ATVs
 		hdr		Use HDR versions of ATVs
