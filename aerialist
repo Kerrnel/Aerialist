@@ -40,9 +40,10 @@ gVers=027
 #	sound [v]	Set volume to this %age
 #	aerial [p]	Path to find folders of videos (aka Seasons)
 #	movies [p]	Path to videos - (no seasons)
+#	season [p]	Fixed season
 #	id [p]		Show video names & ids for a given path
 #
-#	(For AppleTV videos primarily)
+#	(For AppleTV video selection / cache)
 #	online		Use ATV Videos via web only
 #		4k		Use 4k versions of ATVs
 #		hdr		Use HDR versions of ATVs
@@ -120,6 +121,7 @@ STABLE='
 #  the STABLE above
 VITES='
 	dmo:www.dailymotion.com/video/
+	nma:noodlemagazine.com/watch/
 	vmo:vimeo.com/
 	yap:yandex.com/video/preview/
 	ytb:www.youtube.com/watch?v=
@@ -288,6 +290,10 @@ CIDENT=''			# ID of chosen video
 CFORM=''			# Encoding Format of chosen video (if FORMATS != '')
 LOCKF=''			# Lock file
 
+# Options
+oSeason=''
+oMovies=''
+
 # Markers
 OS_TYPE=$(uname -s)
 USER=$(id -un)
@@ -396,9 +402,9 @@ ChooseMovies()	# Set MOVIES & VIDEODB
  {
 	local i
 
-	# Default
+	# Default / User Option to override
 	SEASON="$1"
-	MOVIES="${AERIAL}/${SEASON}"
+	[ -n "$oMovies" ] && { MOVIES="$oMovies"; SEASON="${oMovies##*/}"; } || MOVIES="${AERIAL}/${SEASON}"
 
 	# Some alternative locations for MOVIES if it not a directory - or chosen based on Season election
 	if [ ! -d "$MOVIES" ]; then
@@ -436,11 +442,11 @@ ChooseSeason()	# Set SEASON
 	local	s skip
 
 	# Get Season / Sound
-	if [ $ONLINE -gt 1 ]; then
+	if [ -n "$1" ]; then
+		s="$1"
+	elif [ $ONLINE -gt 1 ]; then
 		s='Apple'
 		Dbg 'Online forced'
-	elif [ -n "$1" ]; then
-		s="$1"
 	else
 		[ -n "$STABLE" ] && s=$(echo "$STABLE" | SeasonMatch "$SEASON")
 		SOUND="${s%%:*}"
@@ -1001,7 +1007,7 @@ ChooseVideo()
 
 	i=0
 	while [ $i -lt 11 ]; do
-		ProposeVideo
+		ProposeVideo "$@"
 		if FormatIsOK; then
 			CFORM="$OUT"
 			VideoDescription "$CTITLE"; CTITLE="$OUT"					# Allow for overriding file name / Apple description
@@ -1223,7 +1229,8 @@ Options()
 	  'sound')		SOUND=25					;;	# Audio
 	  'volume')		SOUND="$2"; a=1				;;	
 	  'aerial')		AERIAL="$2"; a=1			;;	# MOVIES folders inside here
-	  'movies')		MOVIES="$2"; a=1			;;	# Just use this one
+	  'movies')		oMovies="$2"; a=1			;;	# Just use this folder
+	  'season')		oSeason="$2"; a=1			;;	# Just use this one
 	  'hdr')		ONLINEHDR=1					;;	# AppleTV Video quality
 	  '4k')			ONLINE4K=1					;;
 	  'test')		TEST=1; TESTME="$2"; a=1	;;	# Test one video file
@@ -1363,7 +1370,7 @@ trap Stop TERM INT HUP
 
 # Until we are killed...
 while [ 9 -eq 9 ]; do
-	ChooseVideo
+	ChooseVideo "$oSeason"
 	Play
 done
 
