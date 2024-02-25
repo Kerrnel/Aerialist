@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240222
-gVers=027
+gDate=240225
+gVers=028
 #############################################################################
-#	Aerialist 1.27
+#	Aerialist 1.28
 #
 #	Video screensaver plugin for xscreensaver
 #
@@ -121,7 +121,6 @@ STABLE='
 #  the STABLE above
 VITES='
 	dmo:www.dailymotion.com/video/
-	nma:noodlemagazine.com/watch/
 	vmo:vimeo.com/
 	yap:yandex.com/video/preview/
 	ytb:www.youtube.com/watch?v=
@@ -642,6 +641,41 @@ Download()
 	[ "$2" = 'count' ] && OUT=$cnt
  }
 
+InstallMe()
+ {
+	local c ic b p q
+
+	c="${1}"
+
+	[ ! -x "$c" ] && chmod +x "$c"	# In case curl'd from github
+	b="${c##*/}"
+	ic=$(which "$b" 2>/dev/null)
+
+	if [ "$ic" != "$c" ]; then
+		if [ -n "$ic" -a -w "$ic" ]; then
+			if diff "$ic" "$c" >/dev/null; then
+				Dbg "Already installed as $ic"
+				c="$ic"
+			else
+				Dbg "Installing $c to $ic"
+				cp "$c" "$ic" && c="$ic"
+			fi
+		else
+			p="$PATH":~/.local/bin
+			ic=''
+			while [ -n "$p" -a -z "$ic" ]; do
+				q="${p%%:*}"; p="${p#*:}"; [ "$p" = "$q" ] && p=''
+				Dbg "Checking install to: $q"
+				[ -w "$q" ] && cp "$c" "$q" && ic="${q}/${b}" && Dbg "Installed to $q"
+			done
+			[ -n "$ic" ] && c="$ic" || Err "Could not find a writable place in PATH to install - using $c"
+		fi
+	fi
+
+	[ ! -x "$c" ] && chmod +x "$c"	# In case curl'd from github
+	OUT="$c"
+ }
+
 IsInstalled()
  {
 	local	a c
@@ -653,11 +687,17 @@ IsInstalled()
 
 Install()
  {
+	TEST=3
+
+	# .xscreensaver does NOT like full path in quotes for program (for possible spaces)
 	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd x Xs pCmt
 	local	o a c line
 
 	o=~/'.xscreensaver.pre-aerialist'
 	a=~/'.xscreensaver'
+	c="$0"; [ "$c" != "${c#/}" ] || c="$(pwd)/$c"
+
+	InstallMe "$c"; c="$OUT"
 
 	if [ ! -s "$a" ]; then
 		echo "# Created by ${0} on $(date)
@@ -665,12 +705,11 @@ timeout:        0:22:00
 splash:         False
 mode:           random
 programs:                                                                 \
-                    \"Aerialist\"   /all/script/aerialist 4k            \n\
+                    \"Aerialist\"   $c 4k            \n\
 " > "$a"
 	fi
 
 	if [ -s "$a" ]; then
-		c="$0"; [ "$c" != "${c#/}" ] || c="$(pwd)/$c"
 
 		echo "------------------------------------------------------------------
 INSTALL
@@ -712,11 +751,15 @@ Type any parameters to add when started separated with a space:
 						I=1
 					}
 				}' "$o" > "$a"
-			echo 'Should be installed, here is the diff:
+			if diff "$a" "$o" > /dev/null; then
+				echo 'No change.'
+			else
+				echo 'Should be installed, here is the diff:
 --------------'
-			diff "$a" "$o"
-			echo '--------------
+				diff "$a" "$o"
+				echo '--------------
 '
+			fi
 		fi
 	fi
 
@@ -725,15 +768,18 @@ Type any parameters to add when started separated with a space:
 	[ $CACHE -lt 2 ] && Throw "CACHE is less than 2 - so no videos will be downloaded." 21
 
 	echo "
-Needed Programs (Set up XScreenSaver in its GUI)
+Needed helpers
+--------------
 Youtube-DL:	$(which $YTDL 2>&1)
 Curl:		$(which curl 2>&1)
-Player:	$(which $PLAYER 2>&1)
+Player:		$(which $PLAYER 2>&1)
 XScreenSaver:	$(which xscreensaver 2>&1)
-Video Root:	$AERIAL"
+Video Root:	$AERIAL
+"
 
 	TEST=1	# Show messages to screen
 	Prompt '
+
 Continue to cache all videos >1TB now.
 
 Otherwise videos will be downloaded/streamed as needed if you stop now.
@@ -1314,6 +1360,8 @@ LoadWatch()
 
 Play()
  {
+	local	err
+
 	# Prep
 	Subtitles "$CTITLE" > "$SUBTITLE"		# Create SUBTITLE blurp at 0,5,10,15 minutes e.g.
 	PlayerArgs "$SUBTITLE"; args="$OUT"
@@ -1324,7 +1372,9 @@ Play()
 		Prompt "
 	------------------------------------
 	Test command: $PLAYER $args \"$CHOICE\"
-	Choice ($CFORM/$CIDENT): $CHOICE
+	Choice: $CHOICE
+	ID:	$CIDENT
+	Format:	$CFORM (if blank, not read because FORMATS not set)
 	Title:	$CTITLE
 "
 		[ "$OUT" = 't' ] && Msg 'Subtitle sample' && head -n 10 "$SUBTITLE"
@@ -1368,8 +1418,8 @@ Lock
 # Catch interupts to clean up
 trap Stop TERM INT HUP
 
-# Until we are killed...
-while [ 9 -eq 9 ]; do
+# Until we are killed by a signal
+while [ 9 -ne 11 ]; do
 	ChooseVideo "$oSeason"
 	Play
 done
@@ -1380,10 +1430,12 @@ done
 #		(See VideoDescription function below)
 #
 #	Todo
+#	003	GLK	240223	'standalone' option to be a screensaver without help from xscreensaver
 #	002	GLK	240216	Store HighCPU format of video in FORMATS to avoid in future
 #	001	GLK	240131	Seasonal weight column to mix by %age
 #
 #	History
+#	028	GLK	240225	Fix install when no .xscreensaver was present, add InstallMe to be used by curl install, Happy Birthday Alaya!
 #	027	GLK	240222	Broke get/set state at some point - fixed/optimized, $CFORM, bad cached item removal
 #	026	GLK	240216	Monitor CPU usage of $PLAYER - if it is over 50% at 1 minute; skip to next, check duration when saving state if able
 #	025	GLK	240209	Downloads gone crazy; need setting to use but not get new downloads, state did not resume from 0, stateDB uses ID
@@ -1415,5 +1467,5 @@ done
 #	BSD (bourne/dash) compatible
 #
 #	Tested:		on Artix, Void, PopOS, FreeBSD, NetBSD
-#	Requires:	mplayer (or $PLAYER), awk (install), sed, grep & friends, youtube-dl, curl, mediainfo for FORMATS
+#	Requires:	mpv (or $PLAYER), awk (install), sed, grep & friends, youtube-dl, curl, mediainfo for FORMATS
 #################################################################################################################

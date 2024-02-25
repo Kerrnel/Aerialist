@@ -1,11 +1,15 @@
+# Quick Install
+curl -o /tmp/aerialist 'https://raw.githubusercontent.com/Kerrnel/Aerialist/main/aerialist'; sh /tmp/aerialist install
+
+
 # Aerialist
-Videos Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by cron like switching as well as auto caching or online only mode. Will install itself with 'install' as first parameter.
+Video Screensaver for Linux, FreeBSD, NetBSD etc. (xscreensaver plugin) using AppleTV + Youtube DL'd videos with collections supported by cron like switching as well as auto caching or online only mode. Will install itself with 'install' as first parameter.
 
 FreeBSD/NetBSD/Darwin/Linux tested
 
 Usage: Aerialist [cmd [parm]] ...
 
-	Aerialist 1.27
+	Aerialist 1.28
 
 	Video screensaver plugin for xscreensaver
 
@@ -47,5 +51,6 @@ Usage: Aerialist [cmd [parm]] ...
 	Call with no parameters to test with logging to terminal
 	Normally called from xscreensaver to enhance your idle screen
 
-TODO: Proper settings dialog with aerialist.xml for xscreensaver, Mac GUI
+TODO: Proper settings dialog with aerialist.xml for xscreensaver, Mac GUI,
+standalone mode
 Will probably never get there.
