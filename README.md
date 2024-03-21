@@ -9,7 +9,7 @@ FreeBSD/NetBSD/Darwin/Linux tested
 
 Usage: Aerialist [cmd [parm]] ...
 
-	Aerialist 1.28
+	Aerialist 1.29
 
 	Video screensaver plugin for xscreensaver
 
@@ -36,7 +36,10 @@ Usage: Aerialist [cmd [parm]] ...
 	cron		List time table for which videos to play, show current
 	test [p]	Run a test with just this video
 
-	sound [v]	Set volume to this %age
+	sound		Set volume to 25%
+	volume [v]	Set volume to this %age (override table entries)
+	speed [s]	Set playback speed (override table entries)
+
 	aerial [p]	Path to find folders of videos (aka Seasons)
 	season [p]	Force this season
 	movies [p]	Use these videos - (no seasons)
@@ -52,5 +55,4 @@ Usage: Aerialist [cmd [parm]] ...
 	Normally called from xscreensaver to enhance your idle screen
 
 TODO: Proper settings dialog with aerialist.xml for xscreensaver, Mac GUI,
-standalone mode
-Will probably never get there.
+standalone mode. Will probably never get there.

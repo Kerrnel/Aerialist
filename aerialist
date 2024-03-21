@@ -1,9 +1,9 @@
 #!/bin/sh
 #############################################################################
-gDate=240225
-gVers=028
+gDate=240320
+gVers=029
 #############################################################################
-#	Aerialist 1.28
+#	Aerialist 1.29
 #
 #	Video screensaver plugin for xscreensaver
 #
@@ -37,7 +37,9 @@ gVers=028
 #	cron		List time table for which videos to play, show current
 #	test [p]	Run a test with just this video
 #
-#	sound [v]	Set volume to this %age
+#	sound		Set volume to 25%
+#	volume [v]	Set volume to this %age
+#	speed [s]	Set speed to this rate (1=normal,2-9 = /10, 10+ = /100, decimal=rate)
 #	aerial [p]	Path to find folders of videos (aka Seasons)
 #	movies [p]	Path to videos - (no seasons)
 #	season [p]	Fixed season
@@ -65,6 +67,7 @@ TEST=0						# Just show the video that would play
 AERIAL=~/Videos/Aerialist	# Master Path of MOVIES folders (required if ONLINE == 0)
 RESUME=1					# Resume video playback from last position when interrupted
 SOUND=0						# 0-100 audio volume, set in ~/.config/aerial if you wish videos with sound or in STABLE
+SPEED=1						# Speed of video playback
 PANSCAN=1.0					# Crop 16:9 movies - set to 0 to not do it
 FORMATS=''					# List of formats to play / not play - e.g. -AV1 HEVC to disallow AV1 explicitly allow HEVC (implicitly all others) - requires mediainfo installed
 							# Example FORMATS='-AV1 -VP9' for MacBookPro11,2 / i7-4770HQ (not enough GPU power)
@@ -74,9 +77,9 @@ TEXTSIZE=4					# %age of screen pixels for label
 TEXTRGB=AA998877			# Text Color
 
 # Add your own seasons and times to play - link
-# Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume Weight SeasonName
+# Format - Weekday (can be multiple) MonthDay-Begin M-D-End 24HourBeg 24HourEnd AudioVolume PlaybackRate Weight SeasonName
 STABLE="
-	6	1-1		1-31	17	18	0	0	MyVideos	Example - Silent Sunday Evening In January from MyVideos Collection
+	6	1-1		1-31	17	18	0	1.0		0	MyVideos	Example - Silent Sunday Evening In January from MyVideos Collection
 $STABLE"
 
 # Add your own video seasons - format Season= id id id id
@@ -97,21 +100,21 @@ ONLINETPT='http'	# Transport to get online assets (http or https)
 #	Season Table - what videos to play by date/time
 #		(Northern Hemishpere Timed/Named)
 #
-#	WD	BDate	EDate	BH	EH	Vo	We	Name
+#	WD	BDate	EDate	BH	EH	Vo	PS	We	Name
 STABLE='
-	*	12-1	2-14	19	7	22	0	Fireplace
-	*	*		*		19	7	11	0	Night
-	*	*		*		16	18	1	90	Sports
-	6	*		*		12	16	13	90	DIY
-	06	*		*		16	20	19	75	Music
-	135	*		*		8	15	11	90	Animals
-	56	*		*		13	17	5	75	Trains
-	*	*		*		9	17	9	75	Places
-	*	12-1	2-29	*	*	15	99	Winter
-	*	3-1		5-31	*	*	15	99	Spring
-	*	6-1		8-31	*	*	15	99	Summer
-	*	9-1		11-30	*	*	15	99	Autumn
-	*	*		*		*	*	11	10	Apple
+	*	12-1	2-14	19	7	22	75	0	Fireplace
+	*	*		*		19	7	11	1	0	Night
+	*	*		*		16	18	1	5	90	Sports
+	6	*		*		12	16	13	1	90	DIY
+	06	*		*		16	20	19	1	75	Music
+	135	*		*		8	15	11	5	90	Animals
+	56	*		*		13	17	5	5	75	Trains
+	*	*		*		9	17	9	5	75	Places
+	*	12-1	2-29	*	*	15	1	99	Winter
+	*	3-1		5-31	*	*	15	1	99	Spring
+	*	6-1		8-31	*	*	15	1	99	Summer
+	*	9-1		11-30	*	*	15	1	99	Autumn
+	*	*		*		*	*	11	0.6	10	Apple
 '
 
 
@@ -288,6 +291,8 @@ CTITLE=''			# Display name of chosen video
 CIDENT=''			# ID of chosen video
 CFORM=''			# Encoding Format of chosen video (if FORMATS != '')
 LOCKF=''			# Lock file
+PSPEED=''
+PSOUND=''			# User chosen speed & sound overrides
 
 # Options
 oSeason=''
@@ -331,7 +336,7 @@ done
 
 
 Msg()	{	echo "$(date +%k:%M:%S)	$@" >&2;			}
-Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF";	}
+Log()	{	[ $TEST -eq 0 ] && Msg "$@" >> "$LOGF" 2>&1 || Msg "$@" 2>&1 | tee -a "$LOGF" >&2;	}
 Dbg()	{	[ $TEST -ne 0 ] && Msg "+++ [$@] +++";		}
 Err()	{	Msg "*** [$@] ***";							}
 Throw()	{	Err "$1"; [ -n "$2" ] && exit $2; exit 44;	}
@@ -351,7 +356,7 @@ Prompt()
 SeasonMatch()
  {
 	# Process SEASON table (on stdin) and echo first matched Season - or $1 if no match - forked so everything local really
-	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd x Xs pCmt
+	local	d m w H M pw pdb pde phb phe pS pmb pme egb snd spd x Xs pCmt
 
 	M=$(date "+%d %m %w %H %M");	Dbg "Season.:	$M"
 	d="${M%% *}";	M="${M#* }"
@@ -360,9 +365,10 @@ SeasonMatch()
 	H="${M%% *}";	M="${M#* }";	H="${H#0}";	M="${M#0}"
 
 	Xs=0	# To do - calculate weight and return for a re-run?
-	while read pw pdb pde phb phe snd x pS pCmt; do if [ -n "$pw" ]; then
-		# Old format support - inserted column in 1.2, default it to 0
-		[ -z "$pS" ] && pS="$x" && x=0
+	while read pw pdb pde phb phe snd spd x pS pCmt; do if [ -n "$pw" ]; then
+		# Old format support - inserted weight in 1.2, default it to 1, inserted speed in 1.3, default it to 1
+		[ -z "$pS" ] && pS="$x" && x=1
+		[ -z "$pS" ] && pS="$spd" && spd=1
 
 		# Dbg "Season?: [W:$pw][D:$pdb[$pde][T:$phb][$phe][S:$pS][D:$d/$m W:$w T:$H/$M]" >&2
 		# * Matches anything
@@ -389,7 +395,7 @@ SeasonMatch()
 					[  \( $phb -le $phe -a $H -ge $phb -a $H -le $phe \) \
 					-o \( $phb -ge $phe -a \( $H -ge $phb -o $H -le $phe \) \) ] && dm=1
 				fi
-				[ $dm -ne 0 ] && echo "$snd:$pS" && return 0
+				[ $dm -ne 0 ] && echo "$snd:$spd:$pS" && return 0
 			fi
 		fi
 	fi; done
@@ -438,9 +444,9 @@ ChooseMovies()	# Set MOVIES & VIDEODB
 
 ChooseSeason()	# Set SEASON
  {
-	local	s skip
+	local	s skip p
 
-	# Get Season / Sound
+	# Get Season / Sound / Speed
 	if [ -n "$1" ]; then
 		s="$1"
 	elif [ $ONLINE -gt 1 ]; then
@@ -448,8 +454,11 @@ ChooseSeason()	# Set SEASON
 		Dbg 'Online forced'
 	else
 		[ -n "$STABLE" ] && s=$(echo "$STABLE" | SeasonMatch "$SEASON")
-		SOUND="${s%%:*}"
-		s="${s#*:}"
+		SOUND="${s%%:*}";	s="${s#*:}"
+		SPEED="${s%%:*}";	s="${s#*:}"
+		# User (parameter) override?
+		[ -n "$PSOUND" ] && SOUND="$PSOUND"
+		[ -n "$PSPEED" ] && SPEED="$PSPEED"
 	fi
 
 	Dbg "Season:	$s"
@@ -777,10 +786,9 @@ XScreenSaver:	$(which xscreensaver 2>&1)
 Video Root:	$AERIAL
 "
 
-	TEST=1	# Show messages to screen
 	Prompt '
 
-Continue to cache all videos >1TB now.
+Continue to cache all videos (> 1TB) now.
 
 Otherwise videos will be downloaded/streamed as needed if you stop now.
 
@@ -939,6 +947,7 @@ AppleDesc()
 
 VideoDuration()
  {
+	local f
 	if [ "$CHOICE" = "${CHOICE#*//}" ]; then
 		if which 'mediainfo' >/dev/null 2>&1; then
 			f=$(mediainfo --Inform="Video;%Duration%" "$CHOICE")
@@ -1049,7 +1058,7 @@ ProposeVideo()
 
 ChooseVideo()
  {
-	local	f i
+	local	i
 
 	i=0
 	while [ $i -lt 11 ]; do
@@ -1129,19 +1138,30 @@ GetState()
 	return 1
  }
 
+Exp()
+ {
+	local	n=$2
+	OUT=1
+	if [ $1 -ne 0 ]; then while [ $n -gt 0 ]; do
+		OUT=$(($OUT * $1)); n=$(($n - 1))
+	done; fi
+ }
+
 SetState()
  {
 	local	t s line d old db
 
 	OUT=0
 	if [ $RESUME -ne 0 ]; then
-		GetState
-		old=${OUT:-0}
+		GetState; old=${OUT:-0}
 		if [ -n "$1" ]; then
 			t=$1
 		else
 			s=$(( $(date +%s) - $STARTAT ))	# Seconds played
-			[ $s -lt 3 ] && Log "Quicky reset: $s" && s=$((0 - $old))	# Reset position if played quickly (end not detected)
+			# Reset position if ended quickly (end not detected), else adjust for speed of playback
+			[ $s -lt 3 ] \
+				&& { Log "Quicky reset: $s"; s=$((0 - $old)); } \
+				|| { local p; t="${SPEED#*.}"; [ "$t" = "$SPEED" ] && t=0; Exp 10 ${#t}; p=$OUT; s=$(($s * ${SPEED%.*} + $s * $t / $p)); }
 			t=$(($old + $s - 2))										# Played before + played now + me
 			[ $t -lt 0 ] && t=0
 			if [ $t -gt 0 ]; then
@@ -1150,7 +1170,7 @@ SetState()
 			fi
 		fi
 		# Save or remove state?
-		Log "States: $old / $t [$CIDENT]"
+		Log "States: $old / $t [$CIDENT] $SPEED"
 		if [ $old -ne 0 -o $t -ne 0 ]; then
 			[ -s "$STATEDB" ] && db=$(sed -n -e '/:'"$CIDENT"'$/!p' "$STATEDB") || db=''
 			echo "$db" > "$STATEDB"
@@ -1196,8 +1216,8 @@ Stop()
 
 Scale()
  {
-	# Map $1 on a scale where $2 is $3
-	local	n maxs maxd dig	o #	(e.g. 1 100 8 4 -> 0.125 or 1/8 4 digits)
+	# Map $1/$4 onto 1-$2 with $3 digits of precision
+	local	n maxs maxd dig	o #	(e.g. 1 100 4 8 -> 0.125 or 1/8 @ 4 digits)
 	n=$1
 	maxs=$2
 	maxd=$3
@@ -1214,6 +1234,8 @@ PlayerArgs()
 	seek=''
 	[ $RESUME -ne 0 ] && GetState && [ -n "$OUT" ] && seek="$OUT"
 
+  	[ -n "$SPEED" -a "$SPEED" != '1' ] && { [ "$SPEED" = "${SPEED#*.}" ] && [ $SPEED -gt 2 ] && SPEED="$(($SPEED / 100)).$((SPEED % 100))"; }
+
 	args=''
 	case "$PLAYER" in
 	  # Don't mess with screensaver, quiet, full screen, subtitles, seek, 
@@ -1228,6 +1250,7 @@ PlayerArgs()
 		fi
 	  	[ -n "$PANSCAN" ] && args="${args} -panscan $PANSCAN"
 	  	[ -n "$seek" ] && args="${args} -ss $seek"
+	  	[ -n "$SPEED" ] && args="${args} --speed=$SPEED"
 		[ -z "$SOUND" -o "$SOUND" = '0' ] && args="${args} -nosound" || args="${args} -volume $SOUND"
 		[ -n "$XSCREENSAVER_WINDOW" ] && args="${args} -really-quiet -wid $XSCREENSAVER_WINDOW"
 	  ;;
@@ -1237,6 +1260,7 @@ PlayerArgs()
 		args="${args} --hwdec=auto-safe"				# auto, auto-safe
 #		args="${args} --vo=gpu"
 #		args="${args} --vo=vdpau"
+	  	[ -n "$SPEED" ] && args="${args} --speed=$SPEED"
 		[ -n "$SOUND" ] && args="${args} --volume=$SOUND"
 		if [ -n "$1" ]; then
 			args="${args} --sub-file=$1"
@@ -1255,6 +1279,7 @@ PlayerArgs()
 			[ -n "$TEXTRGB" ] && args="${args} --freetype-color="$(($(echo "ibase=16; $TEXTRGB" | bc) / 256))
 		fi
 	  	[ -n "$seek" ] && args="${args} --start-time $seek"
+	  	[ -n "$SPEED" ] && args="${args} --rate=$SPEED"
 		[ -z "$SOUND" -o "$SOUND" = '0' ] && args="${args} --no-audio" || { Scale $SOUND 100 4 1000; args="${args} --gain $OUT"; } # Should be 8 - but seems loud
 		[ -n "$XSCREENSAVER_WINDOW" ] && args="${args} --drawable-xid $XSCREENSAVER_WINDOW --no-embedded-video"
 	  ;;
@@ -1267,13 +1292,14 @@ Options()
 	local	i a
 
 	# Poor mans getopts - Install into xscreensaver and exit, test mode (just output what would happen)
-	while [ -n "$1" ]; do a=0; case "$1" in
+	while [ -n "$1" ]; do a=0; case "${1#--}" in
 	  'install')	Install						;;	# Install into Xscreensaver / Download MOVIES
 	  'id'*)		VideoIDs "$2"; exit 0		;;	# Test Video IDs
 	  'online')		ONLINE=2					;;	# Use AppleTV videos
 	  'offline')	ONLINE=0					;;	# ... or do NOT
-	  'sound')		SOUND=25					;;	# Audio
-	  'volume')		SOUND="$2"; a=1				;;	
+	  'sound')		PSOUND=25					;;	# Audio
+	  'speed')		PSPEED="$2"; a=1			;;	# Playback speed
+	  'volume')		PSOUND="$2"; a=1			;;	
 	  'aerial')		AERIAL="$2"; a=1			;;	# MOVIES folders inside here
 	  'movies')		oMovies="$2"; a=1			;;	# Just use this folder
 	  'season')		oSeason="$2"; a=1			;;	# Just use this one
@@ -1435,6 +1461,7 @@ done
 #	001	GLK	240131	Seasonal weight column to mix by %age
 #
 #	History
+#	029	GLK	240320	Add speed option to adjust playback speed (adjust state accordingly)
 #	028	GLK	240225	Fix install when no .xscreensaver was present, add InstallMe to be used by curl install, Happy Birthday Alaya!
 #	027	GLK	240222	Broke get/set state at some point - fixed/optimized, $CFORM, bad cached item removal
 #	026	GLK	240216	Monitor CPU usage of $PLAYER - if it is over 50% at 1 minute; skip to next, check duration when saving state if able
@@ -1466,6 +1493,6 @@ done
 #
 #	BSD (bourne/dash) compatible
 #
-#	Tested:		on Artix, Void, PopOS, FreeBSD, NetBSD
+#	Tested:		on Kubuntu, Artix, Void, PopOS / Linux, FreeBSD, NetBSD
 #	Requires:	mpv (or $PLAYER), awk (install), sed, grep & friends, youtube-dl, curl, mediainfo for FORMATS
 #################################################################################################################
